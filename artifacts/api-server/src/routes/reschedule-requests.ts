@@ -3,8 +3,8 @@ import { z } from 'zod';
 import { db } from '../db.js';
 import { actor } from '../middleware/actor.js';
 import { requireRole } from '../middleware/require-role.js';
-import { updateEvent } from '../services/calendar-service.js';
-import { sendRescheduleNotification } from '../services/teams-notifier.js';
+import { listEvents, updateEvent } from '../services/calendar-service.js';
+import { sendRescheduleDecisionNotification } from '../services/teams-notifier.js';
 
 export const rescheduleRouter = Router();
 
@@ -119,10 +119,15 @@ rescheduleRouter.post('/:id/approve', requireRole('planejador'), async (req, res
       });
     });
 
-    await sendRescheduleNotification(result.labId, 'aprovado', {
+    const events = await listEvents(result.labId ?? undefined);
+    const event = events.find((e) => e.id === result.eventId);
+    const maintenanceType = event?.maintenanceType === 'corretiva' ? 'Corretiva' : 'Preventiva';
+    const equipamento = event?.summary ?? result.eventId;
+
+    void sendRescheduleDecisionNotification(result.labId, 'aprovado', {
       labName: result.lab?.name ?? 'Lab',
-      maintenanceType: 'Preventiva',
-      equipamento: result.eventId,
+      maintenanceType,
+      equipamento,
       motivo: result.reason,
       newStart: result.newStart ?? undefined,
       newEnd: result.newEnd ?? undefined,
@@ -156,10 +161,15 @@ rescheduleRouter.post('/:id/reject', requireRole('planejador'), async (req, res)
     include: { lab: true },
   });
 
-  await sendRescheduleNotification(result.labId, 'recusado', {
+  const events = await listEvents(result.labId ?? undefined);
+  const event = events.find((e) => e.id === result.eventId);
+  const maintenanceType = event?.maintenanceType === 'corretiva' ? 'Corretiva' : 'Preventiva';
+  const equipamento = event?.summary ?? result.eventId;
+
+  void sendRescheduleDecisionNotification(result.labId, 'recusado', {
     labName: result.lab?.name ?? 'Lab',
-    maintenanceType: 'Preventiva',
-    equipamento: result.eventId,
+    maintenanceType,
+    equipamento,
     motivo: result.reason,
     decisionReason,
   });

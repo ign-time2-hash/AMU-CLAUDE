@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { db } from '../db.js';
 import { actor } from '../middleware/actor.js';
 import { requireRole } from '../middleware/require-role.js';
-import { notifyTeams } from '../services/teams-notifier.js';
+import { sendChamadoNotification } from '../services/teams-notifier.js';
 
 export const chamadosRouter = Router();
 
@@ -59,6 +59,15 @@ chamadosRouter.post('/', requireRole('cliente', 'planejador'), async (req, res) 
     data: { labId, openedBy: req.actor!.username, machineName, description, priority: priority ?? 'normal' },
     include: { lab: true },
   });
+
+  void sendChamadoNotification({
+    labId: chamado.labId,
+    chamadoId: chamado.id,
+    description: chamado.description,
+    status: chamado.status,
+    openedBy: chamado.openedBy,
+  });
+
   res.status(201).json(chamado);
 });
 
@@ -109,8 +118,16 @@ chamadosRouter.post('/:id/accept', requireRole('tecnico_externo', 'planejador'),
     res.status(409).json({ error: 'Chamado não está em espera ou não encontrado' });
     return;
   }
-  const chamado = await db.chamado.findUnique({ where: { id }, include: { lab: true } });
-  if (chamado) await notifyTeams(chamado.labId, `Chamado #${id} aceito por ${req.actor!.name}`);
+  const chamado = await db.chamado.findUnique({ where: { id } });
+  if (chamado) {
+    void sendChamadoNotification({
+      labId: chamado.labId,
+      chamadoId: chamado.id,
+      description: chamado.description,
+      status: chamado.status,
+      openedBy: chamado.openedBy,
+    });
+  }
   res.json({ ok: true });
 });
 
@@ -125,8 +142,16 @@ chamadosRouter.post('/:id/reject', requireRole('tecnico_externo', 'planejador'),
     res.status(409).json({ error: 'Chamado não está em espera ou não encontrado' });
     return;
   }
-  const chamado = await db.chamado.findUnique({ where: { id }, include: { lab: true } });
-  if (chamado) await notifyTeams(chamado.labId, `Chamado #${id} recusado`);
+  const chamado = await db.chamado.findUnique({ where: { id } });
+  if (chamado) {
+    void sendChamadoNotification({
+      labId: chamado.labId,
+      chamadoId: chamado.id,
+      description: chamado.description,
+      status: chamado.status,
+      openedBy: chamado.openedBy,
+    });
+  }
   res.json({ ok: true });
 });
 
@@ -140,8 +165,16 @@ chamadosRouter.post('/:id/complete', requireRole('tecnico_externo', 'planejador'
     res.status(409).json({ error: 'Chamado não está em progresso ou não encontrado' });
     return;
   }
-  const chamado = await db.chamado.findUnique({ where: { id }, include: { lab: true } });
-  if (chamado) await notifyTeams(chamado.labId, `Chamado #${id} concluido por ${req.actor!.name}`);
+  const chamado = await db.chamado.findUnique({ where: { id } });
+  if (chamado) {
+    void sendChamadoNotification({
+      labId: chamado.labId,
+      chamadoId: chamado.id,
+      description: chamado.description,
+      status: chamado.status,
+      openedBy: chamado.openedBy,
+    });
+  }
   res.json({ ok: true });
 });
 

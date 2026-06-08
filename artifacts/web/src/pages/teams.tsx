@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -50,7 +50,24 @@ export function TeamsPage() {
 
   const { data: settings, refetch: refetchSettings } = useQuery({
     queryKey: ['teams-settings'],
-    queryFn: () => apiGet<{ dailySummaryEnabled: boolean }>('/api/teams/settings'),
+    queryFn: () => apiGet<{ dailySummaryEnabled: boolean; dailySummaryWebhookUrl: string | null; dailySummaryTime: string }>('/api/teams/settings'),
+  });
+
+  const summaryUrlRef = useRef<HTMLInputElement>(null);
+  const [editingUrl, setEditingUrl] = useState(false);
+  const [editingTime, setEditingTime] = useState(false);
+  const summaryTimeRef = useRef<HTMLInputElement>(null);
+
+  const saveSummaryUrlMutation = useMutation({
+    mutationFn: (url: string | null) => apiPatch('/api/teams/settings', { dailySummaryWebhookUrl: url }),
+    onSuccess: () => { refetchSettings(); setEditingUrl(false); toast.success('URL salva'); },
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Erro'),
+  });
+
+  const saveSummaryTimeMutation = useMutation({
+    mutationFn: (time: string) => apiPatch('/api/teams/settings', { dailySummaryTime: time }),
+    onSuccess: () => { refetchSettings(); setEditingTime(false); toast.success('Horário salvo'); },
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Erro'),
   });
 
   const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<CreateForm>({
@@ -109,7 +126,7 @@ export function TeamsPage() {
       </div>
 
       {/* Daily summary */}
-      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <div>
             <p className="font-medium text-foreground text-sm">Resumo diário</p>
@@ -127,6 +144,77 @@ export function TeamsPage() {
               {settings?.dailySummaryEnabled ? 'Ativado' : 'Desativado'}
             </Button>
           </div>
+        </div>
+
+        {/* Horário do envio */}
+        <div className="border-t border-border pt-3 space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Horário de envio</Label>
+          {editingTime ? (
+            <div className="flex gap-2">
+              <Input
+                ref={summaryTimeRef}
+                type="time"
+                defaultValue={settings?.dailySummaryTime ?? '07:00'}
+                className="text-xs w-32"
+              />
+              <Button
+                size="sm"
+                onClick={() => saveSummaryTimeMutation.mutate(summaryTimeRef.current?.value ?? '07:00')}
+                disabled={saveSummaryTimeMutation.isPending}
+              >
+                Salvar
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setEditingTime(false)}>
+                Cancelar
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-foreground flex-1">{settings?.dailySummaryTime ?? '07:00'}</p>
+              <Button size="sm" variant="outline" onClick={() => setEditingTime(true)}>
+                Alterar
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* URL específica do resumo */}
+        <div className="border-t border-border pt-3 space-y-1.5">
+          <Label className="text-xs text-muted-foreground">URL específica <span className="text-muted-foreground font-normal">(opcional — se vazia, usa todos os webhooks ativos)</span></Label>
+          {editingUrl ? (
+            <div className="flex gap-2">
+              <Input
+                ref={summaryUrlRef}
+                defaultValue={settings?.dailySummaryWebhookUrl ?? ''}
+                placeholder="https://logic.azure.com/..."
+                className="text-xs"
+              />
+              <Button
+                size="sm"
+                onClick={() => saveSummaryUrlMutation.mutate(summaryUrlRef.current?.value ?? null)}
+                disabled={saveSummaryUrlMutation.isPending}
+              >
+                Salvar
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setEditingUrl(false)}>
+                Cancelar
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-foreground flex-1 truncate">
+                {settings?.dailySummaryWebhookUrl ?? <span className="text-muted-foreground italic">Nenhuma — usa broadcast</span>}
+              </p>
+              <Button size="sm" variant="outline" onClick={() => setEditingUrl(true)}>
+                {settings?.dailySummaryWebhookUrl ? 'Alterar' : 'Configurar'}
+              </Button>
+              {settings?.dailySummaryWebhookUrl && (
+                <Button size="sm" variant="ghost" className="text-muted-foreground" onClick={() => saveSummaryUrlMutation.mutate(null)}>
+                  Remover
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

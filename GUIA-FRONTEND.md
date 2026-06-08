@@ -609,7 +609,7 @@ Renderizado por cima da rota de fundo (a agenda continua atrás). Só planejador
 ## 18. Matriz de funcionalidades por papel
 
 | Funcionalidade | Planejador | Cliente | Técnico externo |
-|---|---|---|---|
+|---|-----|----|---|
 | Ver agenda / calendário | sim | sim (chips não clicáveis) | sim |
 | Criar/editar/excluir evento | sim | não | não |
 | Solicitar reagendamento | não | sim | não |
@@ -621,7 +621,7 @@ Renderizado por cima da rota de fundo (a agenda continua atrás). Só planejador
 | Overview / Mapas | sim | não | não |
 | Chamados (abrir) | sim | sim | não (só fila) |
 | Chamados (aceitar/recusar/concluir/comentar) | sim | não | sim |
-| Scanner QR | não | não | sim |
+| Scanner QR | sim | sim| sim |
 | Perfil / Sair | sim | sim | sim |
 
 > Proteção de rotas via `RoleGate` (seção 4); a navegação (`getNavItems`) só mostra os itens permitidos a cada papel.
