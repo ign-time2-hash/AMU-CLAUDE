@@ -1,0 +1,12 @@
+{
+  "name": "@amu/api-client-react",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "echo 'ok'" },
+  "dependencies": {
+    "@tanstack/react-query": "^5.69.0",
+    "@amu/api-zod": "workspace:*"
+  }
+}

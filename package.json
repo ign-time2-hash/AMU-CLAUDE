@@ -1,0 +1,24 @@
+{
+  "name": "amu-kronus",
+  "private": true,
+  "packageManager": "pnpm@11.5.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "concurrently --names \"api,web\" --prefix-colors \"green,blue\" \"cd artifacts/api-server && npx tsx watch src/index.ts\" \"cd artifacts/web && npx vite --port 5173\"",
+    "build": "pnpm --filter @amu/web build && pnpm --filter @amu/api-server build",
+    "typecheck": "pnpm -r typecheck",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down",
+    "db:reset": "docker compose down -v && docker compose up -d postgres",
+    "db:push": "pnpm --filter @amu/db db:push",
+    "db:bootstrap": "pnpm --filter @amu/api-server bootstrap",
+    "db:verify-seed": "pnpm --filter @amu/api-server verify-seed",
+    "codegen": "pnpm --filter @amu/api-spec codegen"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3",
+    "typescript": "^5.8.2"
+  }
+}

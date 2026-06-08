@@ -1,0 +1,12 @@
+{
+  "name": "@amu/api-spec",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "codegen": "orval --config orval.config.ts",
+    "typecheck": "echo 'no typecheck for api-spec'"
+  },
+  "devDependencies": {
+    "orval": "^7.8.0"
+  }
+}
