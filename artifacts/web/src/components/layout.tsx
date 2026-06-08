@@ -33,6 +33,7 @@ function useNavItems(): NavItem[] {
   const items: NavItem[] = [
     { to: '/agenda', label: 'Agenda', icon: <CalendarDays className="h-5 w-5" />, roles: ['planejador', 'cliente'] },
     { to: '/scan', label: 'Scanner', icon: <Crosshair className="h-5 w-5" />, roles: ['tecnico_externo'] },
+    { to: '/overview', label: 'Laboratórios', icon: <FlaskConical className="h-5 w-5" />, roles: ['planejador'] },
     {
       to: '/reschedules',
       label: 'Reagendamento',
@@ -40,7 +41,6 @@ function useNavItems(): NavItem[] {
       roles: ['planejador'],
       badge: pendingCount ?? 0,
     },
-    { to: '/overview', label: 'Mapas', icon: <FlaskConical className="h-5 w-5" />, roles: ['planejador'] },
     { to: '/inventario', label: 'Inventário', icon: <PackageSearch className="h-5 w-5" />, roles: ['planejador', 'cliente'] },
     { to: '/chamados', label: 'Chamados', icon: <MessageSquareWarning className="h-5 w-5" />, roles: ['tecnico_externo'] },
     { to: '/configuracoes', label: 'Configurações', icon: <Settings2 className="h-5 w-5" />, roles: ['planejador'] },
