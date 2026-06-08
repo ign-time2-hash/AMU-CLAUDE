@@ -82,7 +82,12 @@ export function AgendaPage() {
   const [view, setView] = useState<'month' | 'week'>('month');
   const [anchor, setAnchor] = useState<Date>(new Date(today.getFullYear(), today.getMonth(), 1));
   const [selectedDay, setSelectedDay] = useState<Date>(today);
-  const [selectedLabId, setSelectedLabId] = useState<number | undefined>(undefined);
+  const initialLabId = useMemo(() => {
+    const p = new URLSearchParams(window.location.search);
+    const v = p.get('labId');
+    return v ? parseInt(v) : undefined;
+  }, []);
+  const [selectedLabId, setSelectedLabId] = useState<number | undefined>(initialLabId);
 
   const { data: labs } = useQuery({
     queryKey: ['labs'],

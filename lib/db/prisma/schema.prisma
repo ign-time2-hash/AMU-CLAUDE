@@ -55,14 +55,29 @@ model User {
   @@map("users")
 }
 
+model Mapa {
+  id        Int      @id @default(autoincrement())
+  slug      String   @unique
+  name      String
+  imagePath String   @map("image_path")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  setores   Setor[]
+
+  @@map("mapas")
+}
+
 model Setor {
   id        Int     @id @default(autoincrement())
-  name      String  @unique
+  idMapa    Int     @map("id_mapa")
+  mapa      Mapa    @relation(fields: [idMapa], references: [id])
+  name      String
   cenpes    Cenpes  @default(cenpes_2)
   mapX      Float?  @map("map_x")
   mapY      Float?  @map("map_y")
   labs      Lab[]
 
+  @@unique([idMapa, name])
   @@map("setores")
 }
 

@@ -14,6 +14,7 @@ import { inventarioRouter } from './routes/inventario.js';
 import { webhooksRouter } from './routes/webhooks.js';
 import { teamsRouter } from './routes/teams.js';
 import { setoresRouter } from './routes/setores.js';
+import { mapasRouter } from './routes/mapas.js';
 import { configuracoesRouter } from './routes/configuracoes.js';
 import { systemRouter } from './routes/system.js';
 
@@ -37,6 +38,7 @@ async function main(): Promise<void> {
   app.use('/api/webhooks', webhooksRouter);
   app.use('/api/teams', teamsRouter);
   app.use('/api/setores', setoresRouter);
+  app.use('/api/mapas', mapasRouter);
   app.use('/api/configuracoes', configuracoesRouter);
 
   startDailySummaryJob();

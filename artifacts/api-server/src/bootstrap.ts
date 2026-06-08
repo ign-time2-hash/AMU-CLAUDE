@@ -47,43 +47,83 @@ async function seed(): Promise<void> {
     update: {},
   });
 
-  const setoresData = [
-    { name: 'Setor de Instrumentação', cenpes: 'cenpes_1' as const },
-    { name: 'Setor de Automação', cenpes: 'cenpes_1' as const },
-    { name: 'Setor de Química', cenpes: 'cenpes_2' as const },
-    { name: 'Setor de Biologia', cenpes: 'cenpes_2' as const },
-    { name: 'Setor de Mecânica', cenpes: 'cenpes_2' as const },
+  // Seed mapas
+  const mapasCenpes = [
+    { slug: 'cenpes-1', name: 'Cenpes 1', imagePath: '/maps/cenpes-1-map-v2-transparent.png', cenpes: 'cenpes_1' as const },
+    { slug: 'cenpes-2', name: 'Cenpes 2', imagePath: '/maps/cenpes-1-map-transparent.png', cenpes: 'cenpes_2' as const },
   ];
 
-  const setores: { id: number; name: string }[] = [];
-  for (const s of setoresData) {
-    const setor = await db.setor.upsert({
-      where: { name: s.name },
-      create: s,
-      update: {},
+  const mapas: { id: number; slug: string; cenpes: 'cenpes_1' | 'cenpes_2' }[] = [];
+  for (const m of mapasCenpes) {
+    const mapa = await db.mapa.upsert({
+      where: { slug: m.slug },
+      create: { slug: m.slug, name: m.name, imagePath: m.imagePath },
+      update: { name: m.name, imagePath: m.imagePath },
     });
-    setores.push(setor);
+    mapas.push({ ...mapa, cenpes: m.cenpes });
+  }
+
+  // Seed 8 setores por mapa
+  const setores: { id: number; name: string }[] = [];
+  for (const mapa of mapas) {
+    for (let i = 1; i <= 8; i++) {
+      const setor = await db.setor.upsert({
+        where: { idMapa_name: { idMapa: mapa.id, name: `Setor ${i}` } },
+        create: { idMapa: mapa.id, name: `Setor ${i}`, cenpes: mapa.cenpes },
+        update: {},
+      });
+      setores.push(setor);
+    }
+  }
+
+  // Setor lookup: mapa slug + number → setor id
+  const getSetor = (mapaSlug: string, n: number) => {
+    const mapa = mapas.find(m => m.slug === mapaSlug)!;
+    return setores.find(s => {
+      // find via db query result — name is 'Setor N' and we need idMapa match
+      return s.name === `Setor ${n}`;
+    });
+  };
+
+  // Actually, let me build a proper lookup map
+  const setorMap = new Map<string, number>(); // key: `${mapaSlug}:${n}`
+  for (const mapa of mapas) {
+    for (let i = 1; i <= 8; i++) {
+      const found = setores.find(s => s.name === `Setor ${i}`);
+      if (found) setorMap.set(`${mapa.slug}:${i}`, found.id);
+    }
+  }
+
+  // Re-build with proper mapa association
+  const setorIdMap = new Map<string, number>();
+  for (const mapa of mapas) {
+    for (let i = 1; i <= 8; i++) {
+      const setor = await db.setor.findUnique({
+        where: { idMapa_name: { idMapa: mapa.id, name: `Setor ${i}` } },
+      });
+      if (setor) setorIdMap.set(`${mapa.slug}:${i}`, setor.id);
+    }
   }
 
   const labsData = [
-    { name: 'Lab de Sensores', location: 'Bloco A, Sala 101', setorName: 'Setor de Instrumentação' },
-    { name: 'Lab de Calibração', location: 'Bloco A, Sala 102', setorName: 'Setor de Instrumentação' },
-    { name: 'Lab de CLP', location: 'Bloco B, Sala 201', setorName: 'Setor de Automação' },
-    { name: 'Lab de SCADA', location: 'Bloco B, Sala 202', setorName: 'Setor de Automação' },
-    { name: 'Lab de Análise Química', location: 'Bloco C, Sala 301', setorName: 'Setor de Química' },
-    { name: 'Lab de Síntese', location: 'Bloco C, Sala 302', setorName: 'Setor de Química' },
-    { name: 'Lab de Microbiologia', location: 'Bloco D, Sala 401', setorName: 'Setor de Biologia' },
-    { name: 'Lab de Genética', location: 'Bloco D, Sala 402', setorName: 'Setor de Biologia' },
-    { name: 'Lab de Usinagem', location: 'Bloco E, Sala 501', setorName: 'Setor de Mecânica' },
-    { name: 'Lab de Soldagem', location: 'Bloco E, Sala 502', setorName: 'Setor de Mecânica' },
+    { name: 'Lab de Sensores', location: 'Bloco A, Sala 101', mapaSlug: 'cenpes-1', setorN: 1 },
+    { name: 'Lab de Calibração', location: 'Bloco A, Sala 102', mapaSlug: 'cenpes-1', setorN: 1 },
+    { name: 'Lab de CLP', location: 'Bloco B, Sala 201', mapaSlug: 'cenpes-1', setorN: 2 },
+    { name: 'Lab de SCADA', location: 'Bloco B, Sala 202', mapaSlug: 'cenpes-1', setorN: 2 },
+    { name: 'Lab de Análise Química', location: 'Bloco C, Sala 301', mapaSlug: 'cenpes-2', setorN: 1 },
+    { name: 'Lab de Síntese', location: 'Bloco C, Sala 302', mapaSlug: 'cenpes-2', setorN: 1 },
+    { name: 'Lab de Microbiologia', location: 'Bloco D, Sala 401', mapaSlug: 'cenpes-2', setorN: 2 },
+    { name: 'Lab de Genética', location: 'Bloco D, Sala 402', mapaSlug: 'cenpes-2', setorN: 2 },
+    { name: 'Lab de Usinagem', location: 'Bloco E, Sala 501', mapaSlug: 'cenpes-2', setorN: 3 },
+    { name: 'Lab de Soldagem', location: 'Bloco E, Sala 502', mapaSlug: 'cenpes-2', setorN: 3 },
   ];
 
   const labs: { id: number; name: string }[] = [];
   for (const l of labsData) {
-    const setor = setores.find((s) => s.name === l.setorName);
+    const idSetor = setorIdMap.get(`${l.mapaSlug}:${l.setorN}`);
     const lab = await db.lab.upsert({
       where: { name: l.name },
-      create: { name: l.name, location: l.location, idSetor: setor?.id },
+      create: { name: l.name, location: l.location, ...(idSetor != null ? { idSetor } : {}) },
       update: {},
     });
     labs.push(lab);
@@ -141,7 +181,7 @@ async function seed(): Promise<void> {
         name: e.name,
         idLab: lab.id,
         criticidade: e.criticidade,
-        localInstalacao: e.localInstalacao,
+        ...(e.localInstalacao != null ? { localInstalacao: e.localInstalacao } : {}),
         createdByUsername: 'planejador',
       },
       update: {},
