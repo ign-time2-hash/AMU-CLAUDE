@@ -6,6 +6,7 @@ import { logger } from './logger.js';
 import { db } from './db.js';
 import { runBootstrap } from './bootstrap.js';
 import { startDailySummaryJob } from './services/daily-summary-job.js';
+import { startMaintenanceAnalysisJob } from './services/maintenance-analysis-job.js';
 import { authRouter } from './routes/auth.js';
 import { chamadosRouter } from './routes/chamados.js';
 import { calendarRouter } from './routes/calendar.js';
@@ -42,6 +43,7 @@ async function main(): Promise<void> {
   app.use('/api/configuracoes', configuracoesRouter);
 
   startDailySummaryJob();
+  startMaintenanceAnalysisJob();
 
   app.listen(PORT, () => {
     logger.info(`API AMU/Kronus rodando em http://localhost:${PORT}`);

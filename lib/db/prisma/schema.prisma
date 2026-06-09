@@ -163,6 +163,18 @@ model RescheduleRequest {
   @@map("reschedule_requests")
 }
 
+model MaintenanceNotificationLog {
+  id        Int      @id @default(autoincrement())
+  labId     Int      @map("lab_id")
+  eventId   String   @map("event_id")
+  targetDay String   @map("target_day")
+  sentDate  String   @map("sent_date")
+  sentAt    DateTime @default(now()) @map("sent_at") @db.Timestamptz(6)
+
+  @@unique([labId, eventId, targetDay, sentDate])
+  @@map("maintenance_notification_logs")
+}
+
 model Webhook {
   id         Int      @id @default(autoincrement())
   name       String
