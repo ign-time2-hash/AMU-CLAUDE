@@ -201,6 +201,79 @@ export async function sendDailySummaryNotification(params: {
   }
 }
 
+export async function sendMaintenanceAnalysisNotification(params: {
+  labId: number;
+  targetDay: 'hoje' | 'amanha';
+  event: { id: string; summary: string; start: Date; maintenanceType?: 'preventiva' | 'corretiva' };
+  labName: string;
+}): Promise<void> {
+  const isTomorrow = params.targetDay === 'amanha';
+  const headerText = isTomorrow ? 'Manutenção prevista amanhã' : 'Manutenção programada para hoje';
+  const maintenanceLabel = params.event.maintenanceType === 'corretiva' ? 'Corretiva' : 'Preventiva';
+  const containerStyle = isTomorrow ? 'warning' : 'attention';
+  const themeColor = isTomorrow ? 'EAB308' : 'D13438';
+
+  const facts = [
+    { title: '📍 Setor', value: params.labName },
+    { title: '🔧 Manutenção', value: `${maintenanceLabel} - ${params.event.summary}` },
+    { title: '📅 Data', value: formatFullDatePtBr(params.event.start) },
+    { title: '🕐 Horário', value: formatHourPtBr(params.event.start) },
+  ];
+
+  const messageText = [
+    `📍 Setor: ${params.labName}`,
+    `🔧 Manutenção ${maintenanceLabel} - ${params.event.summary}`,
+    `📅 Data: ${formatFullDatePtBr(params.event.start)}`,
+    `🕐 Horário: ${formatHourPtBr(params.event.start)}`,
+  ].join('\n');
+
+  try {
+    const urls = await resolveWebhookUrls(params.labId);
+    if (urls.length === 0) {
+      logger.warn({ labId: params.labId }, 'Nenhum webhook para analise de manutencao');
+      return;
+    }
+    for (const url of urls) {
+      try {
+        if (isWorkflowsUrl(url)) {
+          await postRaw(url, {
+            type: 'message',
+            attachments: [{
+              contentType: 'application/vnd.microsoft.card.adaptive',
+              content: {
+                $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+                type: 'AdaptiveCard',
+                version: '1.4',
+                body: [{
+                  type: 'Container',
+                  style: containerStyle,
+                  items: [
+                    { type: 'TextBlock', text: headerText, weight: 'Bolder', size: 'Medium' },
+                    { type: 'FactSet', facts },
+                  ],
+                }],
+              },
+            }],
+          });
+        } else {
+          await postRaw(url, {
+            '@type': 'MessageCard',
+            '@context': 'http://schema.org/extensions',
+            summary: headerText,
+            themeColor,
+            title: headerText,
+            text: messageText.replace(/\n/g, '\n\n'),
+          });
+        }
+      } catch (err) {
+        logger.error({ err, url, labId: params.labId }, 'Erro ao enviar analise de manutencao Teams');
+      }
+    }
+  } catch (err) {
+    logger.error({ err }, 'Falha ao resolver webhooks para analise de manutencao');
+  }
+}
+
 // sendWebhook mantido para uso inline no endpoint de teste (webhooks.ts)
 export async function sendWebhook(url: string, message: string): Promise<void> {
   const body = isWorkflowsUrl(url)

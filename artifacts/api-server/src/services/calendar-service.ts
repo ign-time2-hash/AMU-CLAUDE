@@ -12,37 +12,50 @@ export interface CalendarEvent {
   status: 'agendado' | 'em_andamento' | 'concluido';
 }
 
+const d = (offset: number) => new Date(Date.now() + offset * 86400000);
+
 const mockEvents: CalendarEvent[] = [
   {
-    id: 'mock-evt-1',
+    id: 'mock-evt-today-1',
     calendarId: 'mock',
     summary: 'Lab de Sensores - Manutenção Preventiva',
     description: 'Revisão geral dos sensores',
-    start: new Date(Date.now() + 2 * 86400000).toISOString(),
-    end: new Date(Date.now() + 2 * 86400000 + 3600000).toISOString(),
+    start: new Date(d(0).setHours(9, 0, 0, 0)).toISOString(),
+    end: new Date(d(0).setHours(10, 0, 0, 0)).toISOString(),
     labId: 1,
     maintenanceType: 'preventiva',
     status: 'agendado',
   },
   {
-    id: 'mock-evt-2',
+    id: 'mock-evt-tomorrow-1',
     calendarId: 'mock',
     summary: 'Lab de CLP - Manutenção Corretiva',
     description: 'Reparo no CLP Siemens',
-    start: new Date(Date.now() + 5 * 86400000).toISOString(),
-    end: new Date(Date.now() + 5 * 86400000 + 7200000).toISOString(),
+    start: new Date(d(1).setHours(14, 0, 0, 0)).toISOString(),
+    end: new Date(d(1).setHours(16, 0, 0, 0)).toISOString(),
     labId: 3,
     maintenanceType: 'corretiva',
     status: 'agendado',
   },
   {
-    id: 'mock-evt-3',
+    id: 'mock-evt-tomorrow-2',
     calendarId: 'mock',
     summary: 'Lab de Análise Química - Manutenção Preventiva',
     description: 'Calibração do cromatógrafo',
-    start: new Date(Date.now() + 7 * 86400000).toISOString(),
-    end: new Date(Date.now() + 7 * 86400000 + 5400000).toISOString(),
+    start: new Date(d(1).setHours(10, 30, 0, 0)).toISOString(),
+    end: new Date(d(1).setHours(12, 0, 0, 0)).toISOString(),
     labId: 5,
+    maintenanceType: 'preventiva',
+    status: 'agendado',
+  },
+  {
+    id: 'mock-evt-future-1',
+    calendarId: 'mock',
+    summary: 'Lab de Calibração - Manutenção Preventiva',
+    description: 'Calibração semestral',
+    start: d(5).toISOString(),
+    end: new Date(d(5).getTime() + 3600000).toISOString(),
+    labId: 2,
     maintenanceType: 'preventiva',
     status: 'agendado',
   },
@@ -63,6 +76,18 @@ export async function listEvents(labId?: number): Promise<CalendarEvent[]> {
     logger.info('Google Calendar: usando credenciais reais (não implementado neste scaffold)');
   }
   return labId != null ? eventsStore.filter((e) => e.labId === labId) : eventsStore;
+}
+
+export async function listEventsInRange(options: {
+  labId?: number;
+  timeMin?: string;
+  timeMax?: string;
+}): Promise<CalendarEvent[]> {
+  let result = [...eventsStore];
+  if (options.labId != null) result = result.filter((e) => e.labId === options.labId);
+  if (options.timeMin) result = result.filter((e) => new Date(e.start) >= new Date(options.timeMin!));
+  if (options.timeMax) result = result.filter((e) => new Date(e.start) <= new Date(options.timeMax!));
+  return result;
 }
 
 export async function createEvent(data: Omit<CalendarEvent, 'id'>): Promise<CalendarEvent> {

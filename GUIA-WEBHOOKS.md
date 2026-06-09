@@ -166,6 +166,7 @@ Centraliza o envio para o Teams. Exporta 3 funções públicas:
 | `sendChamadoNotification` | Criar/aceitar/recusar/concluir chamado | **Sempre Adaptive Card** (`postAdaptiveCard`) |
 | `sendRescheduleDecisionNotification` | Aprovar ou recusar remarcação | **Dual**: Adaptive Card (Workflows) ou MessageCard (clássico) |
 | `sendDailySummaryNotification` | Cron 07:00 + teste manual | **Sempre Adaptive Card** |
+| `sendMaintenanceAnalysisNotification` *(planejado)* | Cron 06:00 + `POST .../maintenance-analysis/run` | **Dual**: Adaptive Card (Workflows) ou MessageCard (clássico) — ver seção 8 |
 
 Funções internas:
 - `resolveWebhookUrls(labId?)` — resolve para quais URLs enviar (seção 5).
@@ -350,12 +351,350 @@ Aplicada em: `sendRescheduleDecisionNotification` e `POST /webhooks/:id/test`.
 | Teste manual de resumo | `POST /teams/daily-summary/test` | `sendDailySummaryNotification` | sim |
 | Teste manual de webhook | `POST /webhooks/:id/test` | inline em `webhooks.ts` | sim |
 | Criar/editar evento no calendário | `POST/PATCH /calendar/events` | — | **não** |
+| **Análise: manutenção amanhã** | cron / `POST .../maintenance-analysis/run` | `sendMaintenanceAnalysisNotification` | sim (se houver evento) |
+| **Análise: manutenção hoje** | cron / `POST .../maintenance-analysis/run` | `sendMaintenanceAnalysisNotification` | sim (se houver evento) |
+
+> Linhas em itálico/negrito: **requisito de implementação** — hoje o código ainda não possui `sendMaintenanceAnalysisNotification` nem o job de análise. Ver seção 8.
 
 ---
 
-## 8. API REST (contrato)
+## 8. Análise de manutenção no calendário (dia atual + dia seguinte)
 
-### 8.1 Webhooks (`/api/webhooks`) — no OpenAPI
+**Requisito funcional obrigatório:** o sistema deve analisar os eventos de manutenção do **dia atual (hoje)** e do **dia seguinte (amanhã)** para cada laboratório e, quando encontrar manutenções programadas, **disparar notificação Teams** via webhook do `labId`.
+
+A análise é responsabilidade do **backend** (job agendado + endpoint manual), integrada ao `teams-notifier.ts`. O frontend da agenda apenas consome o resultado (opcional) ou dispara a análise sob demanda.
+
+### 8.1 Objetivo
+
+Garantir que o canal Teams do laboratório seja avisado com antecedência:
+
+1. **Amanhã** — se existir manutenção no dia seguinte, notificar **antes** (antecipação para preparo do lab).
+2. **Hoje** — se existir manutenção no dia atual, notificar **no mesmo dia** (alerta imediato).
+
+As duas passagens são **independentes**: um lab pode receber zero, uma ou duas notificações por ciclo de análise.
+
+### 8.2 Quando executar a análise
+
+| Gatilho | Implementação sugerida |
+|---|---|
+| **Cron diário** (recomendado) | Job `maintenance-analysis-job.ts`, ex.: `"0 6 * * *"` (06:00) — antes do resumo das 07:00 |
+| **Abertura da agenda** (opcional) | Frontend chama `POST /calendar/maintenance-analysis/run?labId=X` ao montar `/agenda` ou trocar lab |
+| **Após criar/editar evento** | Invalidação dispara re-análise só para o `labId` afetado |
+| **Teste manual** (planejador) | `POST /calendar/maintenance-analysis/test?labId=X` no Painel Teams ou Configurações |
+
+### 8.3 Janela de consulta ao calendário
+
+Para cada `labId` analisado, buscar eventos via `listCalendarEvents`:
+
+| Parâmetro | Valor |
+|---|---|
+| `calendarId` | `"primary"` |
+| `labId` | id do laboratório |
+| `timeMin` | início do **dia atual** (`00:00:00`, timezone `America/Sao_Paulo`) |
+| `timeMax` | fim do **dia seguinte** (início do dia+2 ou `23:59:59.999` de amanhã) |
+
+**Filtrar** eventos com status `agendado` ou `em_andamento`. Ignorar `concluido`.
+
+Separar em dois conjuntos (chave `YYYY-MM-DD` local):
+
+- `todayEvents` — `start` cai no dia atual
+- `tomorrowEvents` — `start` cai no dia seguinte
+
+### 8.4 Regras de análise e notificação (ordem obrigatória)
+
+#### Passo 1 — Dia seguinte (amanhã)
+
+```
+SE tomorrowEvents.length > 0 PARA labId:
+  PARA CADA evento em tomorrowEvents (ou consolidar em 1 card se vários):
+    sendMaintenanceAnalysisNotification({
+      labId,
+      targetDay: "amanha",
+      event,
+      labName,
+    })
+  → resolveWebhookUrls(labId) → POST Teams
+SENÃO:
+  nenhuma notificação de amanhã
+```
+
+**Mensagem Teams (antecipação):**
+
+```
+Manutenção prevista amanhã
+📍 Setor: {lab.name}
+🔧 Manutenção {Preventiva|Corretiva} - {event.summary}
+📅 Data: {data amanhã pt-BR}
+🕐 Horário: {hora início pt-BR}
+```
+
+- Adaptive Card (Workflows): `Container` com `style: "warning"` (âmbar) ou TextBlocks simples.
+- MessageCard (clássico): `themeColor: "EAB308"`, título `"Manutenção prevista amanhã"`.
+
+#### Passo 2 — Dia atual (hoje)
+
+```
+SE todayEvents.length > 0 PARA labId:
+  PARA CADA evento em todayEvents:
+    sendMaintenanceAnalysisNotification({
+      labId,
+      targetDay: "hoje",
+      event,
+      labName,
+    })
+  → resolveWebhookUrls(labId) → POST Teams
+SENÃO:
+  nenhuma notificação de hoje
+```
+
+**Mensagem Teams (alerta imediato):**
+
+```
+Manutenção programada para hoje
+📍 Setor: {lab.name}
+🔧 Manutenção {Preventiva|Corretiva} - {event.summary}
+📅 Data: {data hoje pt-BR}
+🕐 Horário: {hora início pt-BR}
+```
+
+- Adaptive Card (Workflows): `Container` com `style: "attention"` (vermelho) se criticidade alta; senão `"warning"`.
+- MessageCard (clássico): `themeColor: "D13438"` (alta) ou `"EAB308"` (normal).
+
+> Se houver manutenção **hoje e amanhã**, enviar **notificações distintas** para cada dia (não consolidar em uma só), respeitando deduplicação (8.6).
+
+### 8.5 Função notifier sugerida
+
+Adicionar em `teams-notifier.ts`:
+
+```typescript
+export async function sendMaintenanceAnalysisNotification(params: {
+  labId: number;
+  targetDay: "hoje" | "amanha";
+  event: {
+    id: string;
+    summary: string;
+    start: Date;
+    maintenanceType?: "preventiva" | "corretiva";
+  };
+  labName: string;
+}): Promise<void> {
+  const urls = await resolveWebhookUrls(params.labId);
+  if (urls.length === 0) {
+    logger.warn({ labId: params.labId }, "Nenhum webhook para analise de manutencao");
+    return;
+  }
+
+  const isTomorrow = params.targetDay === "amanha";
+  const headerText = isTomorrow
+    ? "Manutenção prevista amanhã"
+    : "Manutenção programada para hoje";
+  const maintenanceLabel =
+    params.event.maintenanceType === "preventiva" ? "Preventiva" : "Corretiva";
+
+  const lines = [
+    `📍 Setor: ${params.labName}`,
+    `🔧 Manutenção ${maintenanceLabel} - ${params.event.summary}`,
+    `📅 Data: ${formatFullDatePtBr(params.event.start)}`,
+    `🕐 Horário: ${formatHourPtBr(params.event.start)}`,
+  ];
+
+  // Montar workflowsPayload (Adaptive Card) e classicPayload (MessageCard)
+  // igual ao padrão de sendRescheduleDecisionNotification e POST /webhooks/:id/test
+  // isWorkflowsUrl(url) ? workflows : classic
+
+  for (const url of urls) {
+    try {
+      await postRaw(url, /* payload */);
+    } catch (error) {
+      logger.error({ err: error, url, labId: params.labId }, "Erro analise manutencao Teams");
+    }
+  }
+}
+```
+
+Usar **detecção dual-format** (`isWorkflowsUrl`) como em remarcação e teste de webhook.
+
+### 8.6 Controle de duplicidade
+
+Evitar reenviar a mesma notificação várias vezes no mesmo dia:
+
+**Chave de deduplicação:** `{labId}:{YYYY-MM-DD}:{targetDay}:{eventId}`
+
+**Persistência sugerida** (tabela Prisma opcional):
+
+```prisma
+model MaintenanceNotificationLog {
+  id        Int      @id @default(autoincrement())
+  labId     Int      @map("lab_id")
+  eventId   String   @map("event_id")
+  targetDay String   @map("target_day") // "hoje" | "amanha"
+  sentAt    DateTime @default(now()) @map("sent_at") @db.Timestamptz(6)
+
+  @@unique([labId, eventId, targetDay, sentAt(day)]) // ou unique por dia calendário
+  @@map("maintenance_notification_logs")
+}
+```
+
+Alternativa mais simples (sem migration): registrar em memória/redis ou comparar hash dos `eventIds` do dia com último envio — aceitável só em dev.
+
+**Regras:**
+
+- Não reenviar no **mesmo dia civil** para o mesmo `eventId` + `targetDay` + `labId`.
+- Reenviar se um **novo evento** foi adicionado ao dia (eventId novo).
+- Reenviar após **virada de meia-noite** (novo `YYYY-MM-DD` na chave).
+
+### 8.7 Job agendado (`maintenance-analysis-job.ts`)
+
+```typescript
+import cron from "node-cron";
+import { db } from "../db.js";
+import { listCalendarEvents } from "./calendar-service.js";
+import { sendMaintenanceAnalysisNotification } from "./teams-notifier.js";
+import { logger } from "../logger.js";
+
+export function startMaintenanceAnalysisJob(): void {
+  // Todo dia às 06:00 — analisa hoje + amanhã para todos os labs
+  cron.schedule("0 6 * * *", async () => {
+    try {
+      const labs = await db.lab.findMany({ select: { id: true, name: true } });
+      for (const lab of labs) {
+        await analyzeLabMaintenance(lab.id, lab.name);
+      }
+    } catch (error) {
+      logger.error({ err: error }, "Falha no job de analise de manutencao");
+    }
+  });
+}
+
+async function analyzeLabMaintenance(labId: number, labName: string): Promise<void> {
+  const now = new Date();
+  const timeMin = startOfDay(now);
+  const timeMax = endOfTomorrow(now);
+
+  const events = (await listCalendarEvents({
+    calendarId: "primary",
+    labId,
+    timeMin: timeMin.toISOString(),
+    timeMax: timeMax.toISOString(),
+  })).filter((e) => e.status === "agendado" || e.status === "em_andamento");
+
+  const todayKey = toDayKey(now);
+  const tomorrowKey = toDayKey(addDays(now, 1));
+
+  const tomorrowEvents = events.filter((e) => toDayKey(new Date(e.start)) === tomorrowKey);
+  const todayEvents = events.filter((e) => toDayKey(new Date(e.start)) === todayKey);
+
+  // Passo 1: amanhã
+  for (const event of tomorrowEvents) {
+    if (await alreadySent(labId, event.id, "amanha")) continue;
+    await sendMaintenanceAnalysisNotification({
+      labId, targetDay: "amanha", event, labName,
+    });
+    await markSent(labId, event.id, "amanha");
+  }
+
+  // Passo 2: hoje
+  for (const event of todayEvents) {
+    if (await alreadySent(labId, event.id, "hoje")) continue;
+    await sendMaintenanceAnalysisNotification({
+      labId, targetDay: "hoje", event, labName,
+    });
+    await markSent(labId, event.id, "hoje");
+  }
+}
+```
+
+Registrar em `index.ts`: `startMaintenanceAnalysisJob()` junto com `startDailySummaryJob()`.
+
+### 8.8 Endpoints sugeridos
+
+| Método | Rota | Papel | Ação |
+|---|---|---|---|
+| `POST` | `/calendar/maintenance-analysis/run` | planejador | Analisa um `labId` (query/body) — hoje + amanhã |
+| `POST` | `/calendar/maintenance-analysis/run-all` | planejador | Analisa todos os labs |
+| `POST` | `/calendar/maintenance-analysis/test` | planejador | Força envio de teste para um lab (ignora dedup) |
+
+Body exemplo:
+
+```json
+{
+  "actorUsername": "planejador",
+  "labId": 3
+}
+```
+
+Resposta:
+
+```json
+{
+  "labId": 3,
+  "todayCount": 1,
+  "tomorrowCount": 2,
+  "notificationsSent": 3
+}
+```
+
+> Rotas fora do OpenAPI inicialmente (como `/teams` e `/webhooks/:id/test`).
+
+### 8.9 Fluxo completo
+
+```mermaid
+sequenceDiagram
+  participant Cron as maintenance-analysis-job
+  participant Cal as calendar-service
+  participant Notifier as teams-notifier
+  participant DB as webhooks + dedup log
+  participant Teams as Microsoft Teams
+
+  Cron->>Cal: listCalendarEvents(labId, hoje..amanhã)
+  Cal-->>Cron: events[]
+
+  loop Para cada evento de AMANHÃ
+    Cron->>DB: alreadySent(labId, eventId, amanha)?
+    alt Não enviado
+      Cron->>Notifier: sendMaintenanceAnalysisNotification(amanha)
+      Notifier->>DB: resolveWebhookUrls(labId)
+      Notifier->>Teams: POST Adaptive Card / MessageCard
+      Cron->>DB: markSent(...)
+    end
+  end
+
+  loop Para cada evento de HOJE
+    Cron->>DB: alreadySent(labId, eventId, hoje)?
+    alt Não enviado
+      Cron->>Notifier: sendMaintenanceAnalysisNotification(hoje)
+      Notifier->>Teams: POST
+      Cron->>DB: markSent(...)
+    end
+  end
+```
+
+### 8.10 Relação com outros gatilhos
+
+| Notificação | Diferença |
+|---|---|
+| Teste de webhook (`POST /webhooks/:id/test`) | Mensagem fixa de teste; não analisa calendário |
+| Resumo diário (07:00) | Conta chamados/remarcações; não lista eventos do calendário |
+| Remarcação aprovada/recusada | Evento pontual de decisão; não análise preventiva |
+| **Análise de manutenção** | Varredura proativa hoje+amanhã por lab; antecipa operação |
+
+### 8.11 Critérios de aceitação
+
+- [ ] Job 06:00 analisa todos os labs; eventos de **amanhã** disparam notificação Teams no webhook do lab.
+- [ ] Eventos de **hoje** disparam notificação Teams separada (alerta imediato).
+- [ ] Lab sem eventos nos dois dias → nenhuma notificação.
+- [ ] Lab com eventos hoje **e** amanhã → duas notificações distintas (por dia/evento).
+- [ ] Eventos `concluido` ignorados.
+- [ ] Mesmo evento não reenvia no mesmo dia (deduplicação).
+- [ ] URL Workflows recebe Adaptive Card; URL clássica recebe MessageCard.
+- [ ] `POST /calendar/maintenance-analysis/run?labId=X` funciona para teste manual.
+- [ ] Falha Teams não derruba o job (log + continua próximo lab/evento).
+
+---
+
+## 9. API REST (contrato)
+
+### 9.1 Webhooks (`/api/webhooks`) — no OpenAPI
 
 Contrato em `lib/api-spec/openapi.yaml`. Gera hooks Orval/Zod.
 
@@ -376,7 +715,7 @@ lastSentAt: date-time | null
 
 Todas as rotas exigem `actorUsername` e papel **planejador**.
 
-### 8.2 Teams (`/api/teams`) — fora do OpenAPI
+### 9.2 Teams (`/api/teams`) — fora do OpenAPI
 
 | Método | Rota | Body | Resposta |
 |---|---|---|---|
@@ -384,7 +723,7 @@ Todas as rotas exigem `actorUsername` e papel **planejador**.
 | `PATCH` | `/settings` | `{ actorUsername, dailySummaryEnabled }` | `{ dailySummaryEnabled }` |
 | `POST` | `/daily-summary/test` | `{ actorUsername }` | `{ sent: true }` |
 
-### 8.3 Teste de webhook — fora do OpenAPI
+### 9.3 Teste de webhook — fora do OpenAPI
 
 | Método | Rota | Body | Resposta |
 |---|---|---|---|
@@ -392,16 +731,16 @@ Todas as rotas exigem `actorUsername` e papel **planejador**.
 
 ---
 
-## 9. Frontend — Painel Teams (`/teams`)
+## 10. Frontend — Painel Teams (`/teams`)
 
 Arquivo: `artifacts/web/src/pages/teams.tsx`. Acesso: **planejador** (RoleGate + botão ícone Webhook no header).
 
-### 9.1 Seção "Resumo diário"
+### 10.1 Seção "Resumo diário"
 
 - **Botão toggle** "Resumo ativo" / "Resumo inativo": `PATCH /teams/settings`.
 - **Botão "Testar resumo"**: `POST /teams/daily-summary/test`.
 
-### 9.2 Seção "Novo webhook"
+### 10.2 Seção "Novo webhook"
 
 Form com 3 campos + botão:
 - **Nome** (Input, obrigatório)
@@ -409,7 +748,7 @@ Form com 3 campos + botão:
 - **Laboratório** (select): "Sem laboratorio (global)" ou um lab de `GET /configuracoes/labs`
 - **Botão "Adicionar"**: `POST /webhooks` com `{ name, url, enabled: true, labId: number | null }`
 
-### 9.3 Lista de webhooks
+### 10.3 Lista de webhooks
 
 Cada cartão exibe: nome, URL, alvo (`Lab #id` ou "Global (todos os labs)").
 
@@ -420,7 +759,7 @@ Três botões por webhook:
 
 ---
 
-## 10. Variáveis de ambiente
+## 11. Variáveis de ambiente
 
 Arquivo: `.env.example`
 
@@ -433,7 +772,7 @@ Usadas **somente** como fallback em `resolveWebhookUrls` quando não há webhook
 
 ---
 
-## 11. Como gerar uma URL Workflows (recomendado)
+## 12. Como gerar uma URL Workflows (recomendado)
 
 O connector clássico (`webhook.office.com`) foi **descontinuado** pela Microsoft e retorna `403 Forbidden` após revogação. Use o app **Workflows (Fluxos)** no Teams:
 
@@ -449,9 +788,9 @@ A URL Workflows **não expira** por inatividade (diferente do connector clássic
 
 ---
 
-## 12. Tratamento de erros
+## 13. Tratamento de erros
 
-### 12.1 Teste de webhook (`POST /:id/test`)
+### 13.1 Teste de webhook (`POST /:id/test`)
 
 | Status Teams | Resposta AMU | Mensagem ao usuário |
 |---|---|---|
@@ -462,7 +801,7 @@ A URL Workflows **não expira** por inatividade (diferente do connector clássic
 
 Resposta inclui `{ error, status, details }` (details truncado em 500 chars).
 
-### 12.2 Notificações automáticas (notifier)
+### 13.2 Notificações automáticas (notifier)
 
 - Falha silenciosa: log `logger.error` com URL e erro.
 - A operação de negócio (aprovar chamado, etc.) **completa com sucesso** mesmo se o Teams falhar.
@@ -470,7 +809,7 @@ Resposta inclui `{ error, status, details }` (details truncado em 500 chars).
 
 ---
 
-## 13. Decisões de design e limitações conhecidas
+## 14. Decisões de design e limitações conhecidas
 
 | # | Decisão / limitação | Detalhe |
 |---|---|---|
@@ -480,14 +819,15 @@ Resposta inclui `{ error, status, details }` (details truncado em 500 chars).
 | 4 | Payload dual só na remarcação | Chamados e resumo diário usam **apenas Adaptive Card**; podem falhar em URLs clássicas. |
 | 5 | Lógica de teste duplicada | `POST /:id/test` não reutiliza `teams-notifier.ts`. |
 | 6 | Sem notificação na criação de remarcação | Só aprovação/recusa disparam Teams; o pedido pendente não notifica. |
-| 7 | Sem notificação de calendário | Criar/editar evento no calendário não envia webhook. |
+| 7 | Análise de manutenção não implementada | Job/cron e `sendMaintenanceAnalysisNotification` são **requisito** (seção 8); criar/editar evento ainda não dispara webhook imediato. |
 | 8 | `lastSentAt` só no teste | Notificações automáticas não atualizam `lastSentAt`. |
-| 9 | Rotas `/teams` e `/test` fora do OpenAPI | Sem codegen; chamadas manuais via `apiPost`/`apiPatch`/`apiGet`. |
-| 10 | Emojis nas mensagens Teams | Mensagens de remarcação e teste usam emojis (✅, ❌, 📍, 🔧, 📅, 🕐); a UI do AMU não usa emojis. |
+| 9 | Rotas `/teams`, `/test` e análise fora do OpenAPI | Sem codegen; chamadas manuais via `apiPost`/`apiPatch`/`apiGet`. |
+| 10 | Emojis nas mensagens Teams | Mensagens de remarcação, teste e análise de manutenção usam emojis (📍, 🔧, 📅, 🕐); a UI do AMU não usa emojis. |
+| 11 | Análise sem filtro de globais no fallback | Mesmo comportamento de `resolveWebhookUrls`: lab sem webhook dedicado recebe broadcast. |
 
 ---
 
-## 14. Fluxo completo — exemplo: remarcação aprovada
+## 15. Fluxo completo — exemplo: remarcação aprovada
 
 ```
 1. Cliente abre /agenda, clica "Solicitar reagendamento" no MaintenanceCard
@@ -504,7 +844,7 @@ Resposta inclui `{ error, status, details }` (details truncado em 500 chars).
    c. Chama sendRescheduleDecisionNotification(row, eventTitle, labName, maintenanceType)
 
 4. teams-notifier.ts:
-   a. resolveWebhookUrls(labId) → URLs do lab ou fallback
+   a. resolveWebhookUrls(labId) →  URLs do lab ou fallback
    b. Monta blocks (✅ Remarcação aprovada, setor, manutenção, motivo, data, horário)
    c. Para cada URL:
       - Workflows → Adaptive Card com Container style="good"
@@ -516,7 +856,7 @@ Resposta inclui `{ error, status, details }` (details truncado em 500 chars).
 
 ---
 
-## 15. PROMPTS para recriar a arquitetura de webhooks
+## 16. PROMPTS para recriar a arquitetura de webhooks
 
 Use após o backend base e o schema Prisma prontos.
 
@@ -591,9 +931,22 @@ Documente que URLs webhook.office.com (connector clássico) retornam 403 e devem
 por URLs logic.azure.com geradas pelo app Workflows no Teams.
 ```
 
+### Prompt W6 — Análise de manutenção (hoje + amanhã)
+
+```
+Implemente a análise de manutenção no calendário (seção 8 do GUIA-WEBHOOKS.md):
+- sendMaintenanceAnalysisNotification em teams-notifier.ts (targetDay: "hoje"|"amanha", dual-format Workflows/MessageCard).
+- maintenance-analysis-job.ts: cron "0 6 * * *", para cada lab busca eventos hoje+amanhã (agendado/em_andamento),
+  passo 1 notifica amanhã, passo 2 notifica hoje, via resolveWebhookUrls(labId).
+- Deduplicação (tabela MaintenanceNotificationLog ou equivalente) chave labId+eventId+targetDay+dia.
+- Rotas POST /calendar/maintenance-analysis/run (um lab) e /test (força, ignora dedup).
+- Registrar startMaintenanceAnalysisJob() em index.ts.
+Critérios: seção 8.11.
+```
+
 ---
 
-## 16. Checklist de aceitação
+## 17. Checklist de aceitação
 
 - [ ] Planejador cadastra webhook com URL Workflows e lab específico via `/teams`.
 - [ ] "Testar disparo" envia mensagem formatada (setor, manutenção, data, horário) e toast de sucesso.
@@ -605,5 +958,8 @@ por URLs logic.azure.com geradas pelo app Workflows no Teams.
 - [ ] Criar chamado dispara notificação Teams (Adaptive Card com FactSet).
 - [ ] Resumo diário: toggle liga/desliga; "Testar resumo" envia contagens reais.
 - [ ] Cron 07:00 envia resumo quando ativo.
+- [ ] Cron 06:00 analisa manutenção hoje+amanhã por lab; notifica Teams (amanhã = antecipação, hoje = alerta).
+- [ ] Análise não reenvia mesma notificação no mesmo dia (deduplicação).
+- [ ] `POST /calendar/maintenance-analysis/run?labId=X` dispara análise manual.
 - [ ] Fallback `.env` funciona quando não há webhooks no banco.
 - [ ] `pnpm typecheck` limpo.
