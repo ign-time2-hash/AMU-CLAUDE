@@ -11,6 +11,14 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 export async function runBootstrap(): Promise<void> {
   logger.info('Iniciando bootstrap do banco...');
 
+  // Remove usuários com papel removido antes de aplicar o schema
+  try {
+    await db.$executeRaw`DELETE FROM users WHERE role = 'tecnico_externo'`;
+    logger.info('Limpeza de usuários tecnico_externo concluída.');
+  } catch {
+    // Pode falhar se o enum já foi removido — ignorar
+  }
+
   try {
     const schemaPath = resolve(__dirname, '../../../lib/db/prisma/schema.prisma');
     execSync(`npx prisma db push --schema="${schemaPath}" --skip-generate`, {
@@ -38,12 +46,6 @@ async function seed(): Promise<void> {
   await db.user.upsert({
     where: { username: 'cliente' },
     create: { username: 'cliente', passwordHash, name: 'Funcionário de Laboratório', jobTitle: 'Pesquisador', role: 'cliente' },
-    update: {},
-  });
-
-  await db.user.upsert({
-    where: { username: 'tecnico' },
-    create: { username: 'tecnico', passwordHash, name: 'Técnico Externo', jobTitle: 'Técnico de Manutenção', role: 'tecnico_externo' },
     update: {},
   });
 

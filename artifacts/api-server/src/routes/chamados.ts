@@ -29,8 +29,6 @@ chamadosRouter.get('/', async (req, res) => {
   const where =
     role === 'cliente'
       ? { openedBy: username, ...(labId ? { labId } : {}) }
-      : role === 'tecnico_externo'
-      ? { status: { in: ['em_espera', 'em_progresso'] as const }, ...(labId ? { labId } : {}) }
       : labId ? { labId } : {};
 
   const chamados = await db.chamado.findMany({
@@ -84,7 +82,7 @@ chamadosRouter.get('/:id', async (req, res) => {
   res.json(chamado);
 });
 
-chamadosRouter.patch('/:id', requireRole('planejador', 'tecnico_externo'), async (req, res) => {
+chamadosRouter.patch('/:id', requireRole('planejador'), async (req, res) => {
   const id = parseInt(req.params['id'] ?? '');
   const patchSchema = z.object({
     actorUsername: z.string(),
@@ -108,7 +106,7 @@ chamadosRouter.delete('/:id', requireRole('planejador'), async (req, res) => {
   res.status(204).end();
 });
 
-chamadosRouter.post('/:id/accept', requireRole('tecnico_externo', 'planejador'), async (req, res) => {
+chamadosRouter.post('/:id/accept', requireRole('planejador'), async (req, res) => {
   const id = parseInt(req.params['id'] ?? '');
   const updated = await db.chamado.updateMany({
     where: { id, status: 'em_espera' },
@@ -131,7 +129,7 @@ chamadosRouter.post('/:id/accept', requireRole('tecnico_externo', 'planejador'),
   res.json({ ok: true });
 });
 
-chamadosRouter.post('/:id/reject', requireRole('tecnico_externo', 'planejador'), async (req, res) => {
+chamadosRouter.post('/:id/reject', requireRole('planejador'), async (req, res) => {
   const id = parseInt(req.params['id'] ?? '');
   const { rejectionReason } = req.body as { rejectionReason?: string };
   const updated = await db.chamado.updateMany({
@@ -155,7 +153,7 @@ chamadosRouter.post('/:id/reject', requireRole('tecnico_externo', 'planejador'),
   res.json({ ok: true });
 });
 
-chamadosRouter.post('/:id/complete', requireRole('tecnico_externo', 'planejador'), async (req, res) => {
+chamadosRouter.post('/:id/complete', requireRole('planejador'), async (req, res) => {
   const id = parseInt(req.params['id'] ?? '');
   const updated = await db.chamado.updateMany({
     where: { id, status: 'em_progresso' },

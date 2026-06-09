@@ -25,6 +25,11 @@ authRouter.post('/login', async (req, res) => {
     return;
   }
 
+  if (!user.active) {
+    res.status(403).json({ error: 'Conta desabilitada. Entre em contato com o planejador.' });
+    return;
+  }
+
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     res.status(401).json({ error: 'Usuário ou senha inválidos' });
