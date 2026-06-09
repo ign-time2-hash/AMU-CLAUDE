@@ -47,9 +47,7 @@ function AppRoutes() {
         <Route path="/" component={() => <Redirect to={home} />} />
 
         <Route path="/agenda">
-          <RoleGate allow={['planejador', 'cliente']} fallbackTo="/chamados">
-            <AgendaPage />
-          </RoleGate>
+          <AgendaPage />
         </Route>
 
         <Route path="/chamados" component={ChamadosPage} />
@@ -85,7 +83,7 @@ function AppRoutes() {
         </Route>
 
         <Route path="/scan">
-          <RoleGate allow={['tecnico_externo']} fallbackTo="/agenda">
+          <RoleGate allow={['cliente']} fallbackTo="/agenda">
             <ScannerPage />
           </RoleGate>
         </Route>

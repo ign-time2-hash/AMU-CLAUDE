@@ -10,7 +10,6 @@ datasource db {
 enum UserRole {
   planejador
   cliente
-  tecnico_externo
 }
 
 enum Cenpes {
@@ -49,6 +48,7 @@ model User {
   name         String
   jobTitle     String   @default("") @map("job_title")
   role         UserRole
+  active       Boolean  @default(true)
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 

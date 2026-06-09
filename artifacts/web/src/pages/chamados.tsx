@@ -80,7 +80,6 @@ export function ChamadosPage() {
   const { data: labs } = useQuery({
     queryKey: ['labs'],
     queryFn: () => apiGet<Lab[]>('/api/configuracoes/labs'),
-    enabled: user?.role !== 'tecnico_externo',
   });
 
   const { register, handleSubmit, setValue, reset, formState: { errors } } = useForm<CreateForm>({
@@ -116,9 +115,7 @@ export function ChamadosPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-foreground">Chamados</h1>
-          <p className="text-sm text-muted-foreground">
-            {user?.role === 'tecnico_externo' ? 'Fila de atendimento' : 'Todos os chamados'}
-          </p>
+          <p className="text-sm text-muted-foreground">Todos os chamados</p>
         </div>
         {(user?.role === 'cliente' || user?.role === 'planejador') && (
           <Dialog open={open} onOpenChange={setOpen}>
@@ -246,10 +243,10 @@ function ChamadoCard({ chamado: c, userRole, onAccept, onComplete, acceptPending
             <p className="text-xs text-muted-foreground mt-1">{formatDateTime(c.createdAt)}</p>
           </div>
           <div className="flex flex-col gap-1.5 shrink-0 items-end">
-            {userRole === 'tecnico_externo' && c.status === 'em_espera' && (
+            {userRole === 'planejador' && c.status === 'em_espera' && (
               <Button size="sm" onClick={onAccept} disabled={acceptPending}>Aceitar</Button>
             )}
-            {(userRole === 'tecnico_externo' || userRole === 'planejador') && c.status === 'em_progresso' && (
+            {userRole === 'planejador' && c.status === 'em_progresso' && (
               <Button size="sm" variant="outline" onClick={onComplete} disabled={completePending}>Concluir</Button>
             )}
             <button

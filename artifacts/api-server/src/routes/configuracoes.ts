@@ -86,3 +86,17 @@ configuracoesRouter.delete('/labs/:id', async (req, res) => {
   await db.lab.delete({ where: { id } });
   res.status(204).end();
 });
+
+configuracoesRouter.get('/usuarios', async (_req, res) => {
+  const users = await db.user.findMany({ orderBy: { name: 'asc' } });
+  res.json(users.map(({ passwordHash: _, ...u }) => u));
+});
+
+configuracoesRouter.patch('/usuarios/:username', async (req, res) => {
+  const { username } = req.params;
+  const parse = z.object({ actorUsername: z.string(), active: z.boolean() }).safeParse(req.body);
+  if (!parse.success) { res.status(400).json({ error: parse.error.errors[0]?.message }); return; }
+  const user = await db.user.update({ where: { username }, data: { active: parse.data.active } });
+  const { passwordHash: _, ...userSafe } = user;
+  res.json(userSafe);
+});

@@ -37,13 +37,13 @@ function useNavItems(): NavItem[] {
 
   const items: NavItem[] = [
     { to: '/agenda',       label: 'Agenda',        mobileLabel: 'Agenda',    icon: <CalendarDays className="h-5 w-5" />,       roles: ['planejador', 'cliente'] },
-    { to: '/scan',         label: 'Scanner',       mobileLabel: 'Scanner',   icon: <Crosshair className="h-5 w-5" />,           roles: ['tecnico_externo'] },
+    { to: '/scan',         label: 'Scanner',       mobileLabel: 'Scanner',   icon: <Crosshair className="h-5 w-5" />,           roles: ['cliente'] },
     { to: '/overview',     label: 'Laboratórios',  mobileLabel: 'Labs',      icon: <FlaskConical className="h-5 w-5" />,        roles: ['planejador'] },
     { to: '/reschedules',  label: 'Reagendamento', mobileLabel: 'Remarc.',   icon: <RefreshCcw className="h-5 w-5" />,          roles: ['planejador'], badge: pendingCount ?? 0 },
-    { to: '/inventario',   label: 'Inventário',    mobileLabel: 'Invent.',icon: <PackageSearch className="h-5 w-5" />,       roles: ['planejador', 'cliente'] },
-    { to: '/chamados',     label: 'Chamados',      mobileLabel: 'Chamados',  icon: <MessageSquareWarning className="h-5 w-5" />,roles: ['tecnico_externo'] },
+    { to: '/inventario',   label: 'Inventário',    mobileLabel: 'Invent.',   icon: <PackageSearch className="h-5 w-5" />,       roles: ['planejador', 'cliente'] },
+    { to: '/chamados',     label: 'Chamados',      mobileLabel: 'Chamados',  icon: <MessageSquareWarning className="h-5 w-5" />,roles: ['planejador', 'cliente'] },
     { to: '/configuracoes',label: 'Configurações', mobileLabel: 'Config.',   icon: <Settings2 className="h-5 w-5" />,           roles: ['planejador'] },
-    { to: '/perfil',       label: 'Perfil',        mobileLabel: 'Perfil',    icon: <UserCircle2 className="h-5 w-5" />,         roles: ['planejador', 'cliente', 'tecnico_externo'] },
+    { to: '/perfil',       label: 'Perfil',        mobileLabel: 'Perfil',    icon: <UserCircle2 className="h-5 w-5" />,         roles: ['planejador', 'cliente'] },
   ];
 
   return items.filter((item) => user && item.roles.includes(user.role));

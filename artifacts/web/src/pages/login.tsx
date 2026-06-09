@@ -19,7 +19,6 @@ type FormData = z.infer<typeof schema>;
 const DEMO_ACCOUNTS = [
   { label: 'Planejador', username: 'planejador' },
   { label: 'Cliente', username: 'cliente' },
-  { label: 'Técnico externo', username: 'tecnico' },
 ] as const;
 
 export function LoginPage() {

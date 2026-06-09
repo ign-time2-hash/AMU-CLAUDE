@@ -11,11 +11,6 @@ inventarioRouter.use(actor);
 inventarioRouter.get('/tree', async (req, res) => {
   const { role } = req.actor!;
 
-  if (role === 'tecnico_externo') {
-    res.status(403).json({ error: 'Acesso não autorizado' });
-    return;
-  }
-
   const labIdStr = req.query['idLab'] as string | undefined;
   const cenpesFilter = req.query['cenpes'] as string | undefined;
   const setorIdStr = req.query['idSetor'] as string | undefined;
@@ -54,12 +49,7 @@ inventarioRouter.get('/tree', async (req, res) => {
   res.json(setores);
 });
 
-inventarioRouter.get('/labs-allowed', async (req, res) => {
-  const { role } = req.actor!;
-  if (role === 'tecnico_externo') {
-    res.status(403).json({ error: 'Acesso não autorizado' });
-    return;
-  }
+inventarioRouter.get('/labs-allowed', async (_req, res) => {
   const labs = await db.lab.findMany({ orderBy: { name: 'asc' } });
   res.json(labs);
 });
