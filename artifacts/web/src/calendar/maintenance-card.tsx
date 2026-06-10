@@ -22,9 +22,15 @@ export interface CalendarEvent {
 interface RescheduleRequest {
   id: number;
   status: 'pendente' | 'aprovado' | 'recusado';
+  suggestedStart?: string | null;
+  counterSuggestedDate?: string | null;
   newStart?: string | null;
   newEnd?: string | null;
   decisionReason?: string | null;
+}
+function formatDatePtBr(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y!, m! - 1, d!).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 interface Props {
@@ -140,6 +146,19 @@ export function MaintenanceCard({ event, returnTo = '/agenda' }: Props) {
       )}
 
       {/* Ações por papel */}
+      {isCliente && lastRequest?.status === 'pendente' && (
+        <div className="mt-2 rounded-lg bg-yellow-50 border border-yellow-200 px-3 py-2 text-xs text-yellow-800">
+          Já existe um pedido pendente.
+          {lastRequest.suggestedStart && (
+            <> Início sugerido: {new Date(lastRequest.suggestedStart).toLocaleString('pt-BR')}.</>
+          )}
+        </div>
+      )}
+      {isCliente && lastRequest?.status === 'recusado' && lastRequest.counterSuggestedDate && (
+        <div className="mt-2 rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-800">
+          O planejador sugeriu outra data: {formatDatePtBr(lastRequest.counterSuggestedDate)}.
+        </div>
+      )}
       {isCliente && (!lastRequest || lastRequest.status === 'pendente') && (
         <div className="mt-3 pt-3 border-t border-border">
           <Button

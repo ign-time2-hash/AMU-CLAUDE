@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'wouter';
 import {
   Settings2, UserCircle2, LogOut, RefreshCcw, FlaskConical,
-  PackageSearch, MessageSquareWarning, Crosshair, Plus, CalendarDays, Webhook,
+  PackageSearch, Crosshair, Plus, CalendarDays, Webhook,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { AmuLogo, AmuLogoText } from './amu-logo.js';
@@ -41,7 +41,6 @@ function useNavItems(): NavItem[] {
     { to: '/overview',     label: 'Laboratórios',  mobileLabel: 'Labs',      icon: <FlaskConical className="h-5 w-5" />,        roles: ['planejador'] },
     { to: '/reschedules',  label: 'Reagendamento', mobileLabel: 'Remarc.',   icon: <RefreshCcw className="h-5 w-5" />,          roles: ['planejador'], badge: pendingCount ?? 0 },
     { to: '/inventario',   label: 'Inventário',    mobileLabel: 'Invent.',   icon: <PackageSearch className="h-5 w-5" />,       roles: ['planejador', 'cliente'] },
-    { to: '/chamados',     label: 'Chamados',      mobileLabel: 'Chamados',  icon: <MessageSquareWarning className="h-5 w-5" />,roles: ['planejador', 'cliente'] },
     { to: '/configuracoes',label: 'Configurações', mobileLabel: 'Config.',   icon: <Settings2 className="h-5 w-5" />,           roles: ['planejador'] },
     { to: '/perfil',       label: 'Perfil',        mobileLabel: 'Perfil',    icon: <UserCircle2 className="h-5 w-5" />,         roles: ['planejador', 'cliente'] },
   ];

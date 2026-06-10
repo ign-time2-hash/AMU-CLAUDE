@@ -7,7 +7,6 @@ import { RoleGate } from './components/role-gate.js';
 import { EventDialog } from './calendar/event-dialog.js';
 import { LoginPage } from './pages/login.js';
 import { AgendaPage } from './pages/agenda.js';
-import { ChamadosPage } from './pages/chamados.js';
 import { InventarioPage } from './pages/inventario.js';
 import { OverviewPage } from './pages/overview.js';
 import { TeamsPage } from './pages/teams.js';
@@ -49,8 +48,6 @@ function AppRoutes() {
         <Route path="/agenda">
           <AgendaPage />
         </Route>
-
-        <Route path="/chamados" component={ChamadosPage} />
 
         <Route path="/inventario">
           <RoleGate allow={['planejador', 'cliente']}>

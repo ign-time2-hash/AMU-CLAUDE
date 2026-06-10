@@ -97,6 +97,76 @@ export async function sendChamadoNotification(params: {
   }
 }
 
+function formatDateStringPtBr(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y!, m! - 1, d!).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+export async function sendRescheduleCreatedNotification(
+  labId: number | null | undefined,
+  payload: {
+    labName: string;
+    requestedByName: string;
+    reason: string;
+    suggestedDate?: string;
+  },
+): Promise<void> {
+  try {
+    const urls = await resolveWebhookUrls(labId);
+    for (const url of urls) {
+      try {
+        const facts: { title: string; value: string }[] = [
+          { title: '📍 Setor', value: payload.labName },
+          { title: '👤 Solicitante', value: payload.requestedByName },
+          { title: 'Motivo', value: payload.reason },
+        ];
+        if (payload.suggestedDate) {
+          facts.push({ title: '📅 Data sugerida pelo cliente', value: formatDateStringPtBr(payload.suggestedDate) });
+        }
+        if (isWorkflowsUrl(url)) {
+          await postRaw(url, {
+            type: 'message',
+            attachments: [{
+              contentType: 'application/vnd.microsoft.card.adaptive',
+              content: {
+                $schema: 'http://adaptivecards.io/schemas/adaptive-card.json',
+                type: 'AdaptiveCard',
+                version: '1.4',
+                body: [{
+                  type: 'Container',
+                  style: 'warning',
+                  items: [
+                    { type: 'TextBlock', text: '🔄 Novo pedido de reagendamento', weight: 'Bolder', size: 'Medium' },
+                    { type: 'TextBlock', text: 'Um cliente solicitou o reagendamento de uma manutenção.', wrap: true },
+                    { type: 'FactSet', facts },
+                  ],
+                }],
+              },
+            }],
+          });
+        } else {
+          let text = `Novo pedido de reagendamento.\n\n📍 Setor: ${payload.labName}\n\n👤 Solicitante: ${payload.requestedByName}\n\nMotivo: ${payload.reason}`;
+          if (payload.suggestedDate) {
+            text += `\n\n📅 Data sugerida pelo cliente: ${formatDateStringPtBr(payload.suggestedDate)}`;
+          }
+          await postRaw(url, {
+            '@type': 'MessageCard',
+            '@context': 'http://schema.org/extensions',
+            summary: 'Novo pedido de reagendamento',
+            themeColor: 'EAB308',
+            title: '🔄 Novo pedido de reagendamento',
+            text,
+          });
+        }
+      } catch (err) {
+        logger.error({ err, url }, 'Falha ao enviar notificação de criação de reagendamento');
+      }
+    }
+  } catch (err) {
+    logger.error({ err }, 'Falha ao resolver webhooks para criação de reagendamento');
+  }
+}
+
 export async function sendRescheduleDecisionNotification(
   labId: number | null | undefined,
   decision: 'aprovado' | 'recusado',
@@ -106,6 +176,7 @@ export async function sendRescheduleDecisionNotification(
     equipamento: string;
     motivo: string;
     decisionReason?: string;
+    counterSuggestedDate?: string;
     newStart?: Date;
     newEnd?: Date;
   },
@@ -128,6 +199,9 @@ export async function sendRescheduleDecisionNotification(
           }
           if (!isApproved) {
             facts.push({ title: '⚠️ Motivo da recusa', value: payload.decisionReason ?? '' });
+            if (payload.counterSuggestedDate) {
+              facts.push({ title: '📅 Data alternativa sugerida', value: formatDateStringPtBr(payload.counterSuggestedDate) });
+            }
           }
           await postRaw(url, {
             type: 'message',
@@ -160,6 +234,9 @@ export async function sendRescheduleDecisionNotification(
           }
           if (!isApproved) {
             text += `\n\n⚠️ Motivo da recusa: ${payload.decisionReason ?? ''}`;
+            if (payload.counterSuggestedDate) {
+              text += `\n\n📅 Data alternativa sugerida: ${formatDateStringPtBr(payload.counterSuggestedDate)}`;
+            }
           }
           await postRaw(url, {
             '@type': 'MessageCard',
