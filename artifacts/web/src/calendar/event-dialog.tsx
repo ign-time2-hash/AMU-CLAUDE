@@ -309,7 +309,7 @@ export function EventDialog() {
 
           {/* Ações */}
           <div className="flex gap-2 pt-2">
-            {!isNew && (
+            {!isNew && user?.isPlannerAdmin && (
               <Button
                 type="button"
                 variant="outline"

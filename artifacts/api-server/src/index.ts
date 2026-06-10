@@ -46,7 +46,7 @@ async function main(): Promise<void> {
   startMaintenanceAnalysisJob();
 
   app.listen(PORT, () => {
-    logger.info(`API AMU/Kronus rodando em http://localhost:${PORT}`);
+    logger.info(`API AMU rodando em http://localhost:${PORT}`);
   });
 }
 

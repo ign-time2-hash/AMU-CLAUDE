@@ -7,6 +7,7 @@ declare global {
         username: string;
         name: string;
         role: UserRole;
+        isPlannerAdmin: boolean;
       };
     }
   }

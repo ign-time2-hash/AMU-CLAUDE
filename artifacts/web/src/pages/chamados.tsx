@@ -69,6 +69,7 @@ type CreateForm = z.infer<typeof createSchema>;
 
 export function ChamadosPage() {
   const { user } = useAuth();
+  const canActOnChamados = user?.role === 'planejador' && user.isPlannerAdmin === true;
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 
@@ -178,7 +179,7 @@ export function ChamadosPage() {
             <ChamadoCard
               key={c.id}
               chamado={c}
-              userRole={user?.role}
+              canAct={canActOnChamados}
               onAccept={() => acceptMutation.mutate(c.id)}
               onComplete={() => completeMutation.mutate(c.id)}
               acceptPending={acceptMutation.isPending}
@@ -195,14 +196,14 @@ export function ChamadosPage() {
 
 interface ChamadoCardProps {
   chamado: Chamado;
-  userRole?: string;
+  canAct?: boolean;
   onAccept: () => void;
   onComplete: () => void;
   acceptPending: boolean;
   completePending: boolean;
 }
 
-function ChamadoCard({ chamado: c, userRole, onAccept, onComplete, acceptPending, completePending }: ChamadoCardProps) {
+function ChamadoCard({ chamado: c, canAct, onAccept, onComplete, acceptPending, completePending }: ChamadoCardProps) {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
   const [commentBody, setCommentBody] = useState('');
@@ -243,10 +244,10 @@ function ChamadoCard({ chamado: c, userRole, onAccept, onComplete, acceptPending
             <p className="text-xs text-muted-foreground mt-1">{formatDateTime(c.createdAt)}</p>
           </div>
           <div className="flex flex-col gap-1.5 shrink-0 items-end">
-            {userRole === 'planejador' && c.status === 'em_espera' && (
+            {canAct && c.status === 'em_espera' && (
               <Button size="sm" onClick={onAccept} disabled={acceptPending}>Aceitar</Button>
             )}
-            {userRole === 'planejador' && c.status === 'em_progresso' && (
+            {canAct && c.status === 'em_progresso' && (
               <Button size="sm" variant="outline" onClick={onComplete} disabled={completePending}>Concluir</Button>
             )}
             <button

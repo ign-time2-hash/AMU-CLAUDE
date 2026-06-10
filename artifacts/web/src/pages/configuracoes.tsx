@@ -6,9 +6,8 @@ import { z } from 'zod';
 import { toast } from 'sonner';
 import { Plus, Trash2, QrCode } from 'lucide-react';
 import { QRCodeCanvas } from 'qrcode.react';
-import { apiGet, apiPost, apiDelete, apiPatch } from '../lib/api.js';
+import { apiGet, apiPost, apiDelete } from '../lib/api.js';
 import { Button } from '../components/ui/button.js';
-import { Switch } from '../components/ui/switch.js';
 import { Input } from '../components/ui/input.js';
 import { Label } from '../components/ui/label.js';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select.js';
@@ -18,7 +17,6 @@ import { Skeleton } from '../components/ui/skeleton.js';
 
 interface Setor { id: number; name: string; cenpes: string; }
 interface Lab { id: number; name: string; location: string; setor?: Setor | null; }
-interface User { username: string; name: string; jobTitle: string; role: string; active: boolean; }
 
 function SetorList() {
   const queryClient = useQueryClient();
@@ -219,58 +217,13 @@ function LabList() {
   );
 }
 
-const roleLabel: Record<string, string> = {
-  planejador: 'Planejador',
-  cliente: 'Cliente',
-};
-
-function UserList() {
-  const queryClient = useQueryClient();
-  const { data: users, isLoading } = useQuery({ queryKey: ['conf-usuarios'], queryFn: () => apiGet<User[]>('/api/configuracoes/usuarios') });
-
-  const toggleMut = useMutation({
-    mutationFn: ({ username, active }: { username: string; active: boolean }) =>
-      apiPatch(`/api/configuracoes/usuarios/${username}`, { active }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['conf-usuarios'] }),
-    onError: (e) => toast.error(e instanceof Error ? e.message : 'Erro'),
-  });
-
-  return (
-    <div>
-      <div className="mb-3">
-        <h2 className="text-base font-semibold text-foreground">Usuários</h2>
-        <p className="text-xs text-muted-foreground">Habilite ou desabilite o acesso de cada conta</p>
-      </div>
-      {isLoading ? <Skeleton className="h-32 w-full" /> : (
-        <div className="space-y-2">
-          {users?.map((u) => (
-            <div key={u.username} className="rounded-2xl border border-border bg-card p-3 flex items-center justify-between">
-              <div>
-                <p className="font-medium text-sm text-foreground">{u.name}</p>
-                <p className="text-xs text-muted-foreground">{roleLabel[u.role] ?? u.role} · {u.username}</p>
-              </div>
-              <Switch
-                checked={u.active}
-                disabled={u.role === 'planejador' || toggleMut.isPending}
-                onCheckedChange={(checked) => toggleMut.mutate({ username: u.username, active: checked })}
-                title={u.role === 'planejador' ? 'Conta do planejador não pode ser desabilitada' : undefined}
-              />
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function ConfiguracoesPage() {
   return (
     <div className="p-4 md:p-6 space-y-8">
       <div>
         <h1 className="text-xl font-semibold text-foreground">Configurações</h1>
-        <p className="text-sm text-muted-foreground">Gerencie usuários, setores e laboratórios</p>
+        <p className="text-sm text-muted-foreground">Gerencie setores e laboratórios</p>
       </div>
-      <UserList />
       <SetorList />
       <LabList />
     </div>

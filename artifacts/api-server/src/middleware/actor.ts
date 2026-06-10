@@ -17,6 +17,6 @@ export async function actor(req: Request, res: Response, next: NextFunction): Pr
     return;
   }
 
-  req.actor = { username: user.username, name: user.name, role: user.role };
+  req.actor = { username: user.username, name: user.name, role: user.role, isPlannerAdmin: user.isPlannerAdmin };
   next();
 }

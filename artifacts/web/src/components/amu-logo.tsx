@@ -24,7 +24,6 @@ export function AmuLogoText({ className }: { className?: string }) {
   return (
     <span className={className}>
       <span className="font-bold text-primary text-xl tracking-tight">AMU</span>
-      <span className="text-xs text-muted-foreground ml-1">Kronus</span>
     </span>
   );
 }

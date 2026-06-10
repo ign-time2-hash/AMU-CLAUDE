@@ -37,14 +37,28 @@ export async function runBootstrap(): Promise<void> {
 async function seed(): Promise<void> {
   const passwordHash = await bcrypt.hash('kronus2026', 10);
 
-  await db.user.upsert({
-    where: { username: 'planejador' },
-    create: { username: 'planejador', passwordHash, name: 'Carlos Silva', jobTitle: 'Planejador de Manutenção', role: 'planejador' },
-    update: {},
-  });
+  // Migrar conta legada "planejador" → "planejador_adm"
+  await db.$executeRaw`
+    UPDATE users SET username = 'planejador_adm', is_planner_admin = true
+    WHERE username = 'planejador'
+  `;
+
+  const planners = [
+    { username: 'planejador_adm', name: 'Administrador AMU',       jobTitle: 'Planejador ADM',          isPlannerAdmin: true  },
+    { username: 'planejador_1',   name: 'Planejador Operacional 1', jobTitle: 'Planejador de Manutenção', isPlannerAdmin: false },
+    { username: 'planejador_2',   name: 'Planejador Operacional 2', jobTitle: 'Planejador de Manutenção', isPlannerAdmin: false },
+  ];
+
+  for (const p of planners) {
+    await db.user.upsert({
+      where:  { username: p.username },
+      create: { username: p.username, passwordHash, name: p.name, jobTitle: p.jobTitle, role: 'planejador', isPlannerAdmin: p.isPlannerAdmin },
+      update: {},
+    });
+  }
 
   await db.user.upsert({
-    where: { username: 'cliente' },
+    where:  { username: 'cliente' },
     create: { username: 'cliente', passwordHash, name: 'Funcionário de Laboratório', jobTitle: 'Pesquisador', role: 'cliente' },
     update: {},
   });
@@ -184,7 +198,7 @@ async function seed(): Promise<void> {
         idLab: lab.id,
         criticidade: e.criticidade,
         ...(e.localInstalacao != null ? { localInstalacao: e.localInstalacao } : {}),
-        createdByUsername: 'planejador',
+        createdByUsername: 'planejador_adm',
       },
       update: {},
     });

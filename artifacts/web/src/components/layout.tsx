@@ -46,7 +46,9 @@ function useNavItems(): NavItem[] {
     { to: '/perfil',       label: 'Perfil',        mobileLabel: 'Perfil',    icon: <UserCircle2 className="h-5 w-5" />,         roles: ['planejador', 'cliente'] },
   ];
 
-  return items.filter((item) => user && item.roles.includes(user.role));
+  return items
+    .filter((item) => user && item.roles.includes(user.role))
+    .filter((item) => item.to !== '/configuracoes' || (user?.role === 'planejador' && user.isPlannerAdmin));
 }
 
 function initials(name: string): string {
@@ -186,11 +188,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   <Plus className="h-4 w-4" />Novo evento
                 </Link>
               </Button>
-              <Button size="icon" variant="outline" className="h-8 w-8 shrink-0" asChild>
-                <Link href="/teams" title="Webhooks Teams">
-                  <Webhook className="h-4 w-4" />
-                </Link>
-              </Button>
+              {user.isPlannerAdmin && (
+                <Button size="icon" variant="outline" className="h-8 w-8 shrink-0" asChild>
+                  <Link href="/teams" title="Webhooks Teams">
+                    <Webhook className="h-4 w-4" />
+                  </Link>
+                </Button>
+              )}
             </div>
           )}
         </div>

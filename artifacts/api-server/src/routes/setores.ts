@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '../db.js';
 import { actor } from '../middleware/actor.js';
 import { requireRole } from '../middleware/require-role.js';
+import { requirePlannerAdmin } from '../middleware/require-planner-admin.js';
 
 export const setoresRouter = Router();
 
@@ -20,7 +21,7 @@ setoresRouter.get('/', async (req, res) => {
   res.json(setores);
 });
 
-setoresRouter.patch('/:id/coords', requireRole('planejador'), async (req, res) => {
+setoresRouter.patch('/:id/coords', requireRole('planejador'), requirePlannerAdmin(), async (req, res) => {
   const id = parseInt((req.params['id'] as string) ?? '');
   const schema = z.object({
     actorUsername: z.string(),
