@@ -8,7 +8,7 @@ interface RoleGateProps {
   children: React.ReactNode;
 }
 
-export function RoleGate({ allow, fallbackTo = '/chamados', children }: RoleGateProps) {
+export function RoleGate({ allow, fallbackTo = '/agenda', children }: RoleGateProps) {
   const { user, isAuthenticated } = useAuth();
   if (!isAuthenticated) return <Redirect to="/login" />;
   if (!user || !allow.includes(user.role)) return <Redirect to={fallbackTo} />;

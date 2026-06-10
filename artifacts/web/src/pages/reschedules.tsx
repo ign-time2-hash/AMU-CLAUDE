@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../lib/auth.js';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { RefreshCcw } from 'lucide-react';
+import { RefreshCcw, Calendar } from 'lucide-react';
 import { apiGet, apiPost } from '../lib/api.js';
 import { Button } from '../components/ui/button.js';
 import { Input } from '../components/ui/input.js';
@@ -19,16 +19,28 @@ import { formatDateTime } from '../lib/utils.js';
 interface RescheduleRequest {
   id: number;
   eventId: string;
+  labId?: number | null;
   requestedByName: string;
   reason: string;
   suggestedStart?: string | null;
-  suggestedEnd?: string | null;
+  counterSuggestedDate?: string | null;
   status: 'pendente' | 'aprovado' | 'recusado';
   decisionReason?: string | null;
   newStart?: string | null;
   newEnd?: string | null;
   lab?: { name: string } | null;
   createdAt: string;
+}
+
+interface CalendarEventMin {
+  id: string;
+  start: string;
+  end: string;
+}
+
+function formatDatePtBr(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(y!, m! - 1, d!).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 const STATUS_BADGE: Record<string, string> = {
@@ -44,6 +56,7 @@ const approveSchema = z.object({
 });
 
 const rejectSchema = z.object({
+  counterSuggestedDate: z.string().optional(),
   decisionReason: z.string().min(1, 'Informe o motivo da recusa'),
 });
 
@@ -62,8 +75,34 @@ export function ReschedulesPage() {
     queryFn: () => apiGet<RescheduleRequest[]>('/api/reschedule-requests'),
   });
 
+  const { data: approvalEvents } = useQuery({
+    queryKey: ['calendar-events-for-approval', selected?.labId, selected?.eventId],
+    queryFn: () =>
+      apiGet<CalendarEventMin[]>(`/api/calendar/events${selected?.labId ? `?labId=${selected.labId}` : ''}`).then(
+        (evs) => evs.find((e) => e.id === selected!.eventId) ?? null,
+      ),
+    enabled: action === 'approve' && !!selected,
+  });
+
   const approveForm = useForm<ApproveForm>({ resolver: zodResolver(approveSchema) });
   const rejectForm = useForm<RejectForm>({ resolver: zodResolver(rejectSchema) });
+
+  useEffect(() => {
+    if (action !== 'approve' || !selected) return;
+    if (!approvalEvents) return;
+    if (selected.suggestedStart) {
+      const suggestedStart = new Date(selected.suggestedStart);
+      const origStart = new Date(approvalEvents.start);
+      const origEnd = new Date(approvalEvents.end);
+      const durationMs = origEnd.getTime() - origStart.getTime();
+      const suggestedEnd = new Date(suggestedStart.getTime() + durationMs);
+      approveForm.setValue('newStart', suggestedStart.toISOString().slice(0, 16));
+      approveForm.setValue('newEnd', suggestedEnd.toISOString().slice(0, 16));
+    } else {
+      approveForm.setValue('newStart', approvalEvents.start.slice(0, 16));
+      approveForm.setValue('newEnd', approvalEvents.end.slice(0, 16));
+    }
+  }, [action, selected, approvalEvents, approveForm]);
 
   const approveMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: ApproveForm }) =>
@@ -144,18 +183,19 @@ export function ReschedulesPage() {
             <form onSubmit={approveForm.handleSubmit((d) => approveMutation.mutate({ id: selected.id, data: d }))} className="space-y-4 mt-2">
               <p className="text-sm text-muted-foreground">Motivo solicitado: {selected.reason}</p>
               {selected.suggestedStart && (
-                <p className="text-sm text-muted-foreground">
-                  Sugerido: {formatDateTime(selected.suggestedStart)} — {selected.suggestedEnd ? formatDateTime(selected.suggestedEnd) : ''}
-                </p>
+                <div className="flex items-start gap-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2 text-sm text-blue-800">
+                  <Calendar className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>Horário sugerido pelo cliente: <strong>{new Date(selected.suggestedStart).toLocaleString('pt-BR')}</strong></span>
+                </div>
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Nova data/hora início</Label>
-                  <Input type="datetime-local" {...approveForm.register('newStart')} defaultValue={selected.suggestedStart?.slice(0, 16) ?? ''} />
+                  <Label>Novo início</Label>
+                  <Input type="datetime-local" {...approveForm.register('newStart')} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Nova data/hora fim</Label>
-                  <Input type="datetime-local" {...approveForm.register('newEnd')} defaultValue={selected.suggestedEnd?.slice(0, 16) ?? ''} />
+                  <Label>Novo fim</Label>
+                  <Input type="datetime-local" {...approveForm.register('newEnd')} />
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -180,6 +220,11 @@ export function ReschedulesPage() {
           {selected && (
             <form onSubmit={rejectForm.handleSubmit((d) => rejectMutation.mutate({ id: selected.id, data: d }))} className="space-y-4 mt-2">
               <p className="text-sm text-muted-foreground">Motivo solicitado: {selected.reason}</p>
+              <div className="space-y-1.5">
+                <Label>Data alternativa sugerida <span className="text-muted-foreground">(opcional)</span></Label>
+                <Input type="date" {...rejectForm.register('counterSuggestedDate')} min={new Date().toISOString().slice(0, 10)} />
+                <p className="text-xs text-muted-foreground">Se quiser propor outro dia ao cliente, selecione uma data aqui.</p>
+              </div>
               <div className="space-y-1.5">
                 <Label>Motivo da recusa</Label>
                 <Textarea {...rejectForm.register('decisionReason')} placeholder="Explique o motivo da recusa..." />
