@@ -1,13 +1,12 @@
 import { useState, useMemo } from 'react';
 import { Link, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock } from 'lucide-react';
 import { apiGet } from '../lib/api.js';
 import { useAuth } from '../lib/auth.js';
 import { Button } from '../components/ui/button.js';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select.js';
 import { Skeleton } from '../components/ui/skeleton.js';
-import { MaintenanceCard } from '../calendar/maintenance-card.js';
 import { cn } from '../lib/utils.js';
 
 interface CalendarEvent {
@@ -56,15 +55,19 @@ function buildWeekGrid(anchor: Date): Date[] {
 
 function rangeLabel(view: 'month' | 'week', anchor: Date): string {
   if (view === 'month') {
-    return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(anchor);
+    return new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(anchor).toUpperCase();
   }
   const days = buildWeekGrid(anchor);
   const fmt = (d: Date) => new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: 'short' }).format(d);
-  return `${fmt(days[0]!)} - ${fmt(days[6]!)}`;
+  return `${fmt(days[0]!)} — ${fmt(days[6]!)}`;
 }
 
 function formatDatePt(d: Date): string {
   return new Intl.DateTimeFormat('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' }).format(d);
+}
+
+function formatTime(iso: string): string {
+  return new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
 }
 
 function inferPriority(text: string): 'alta' | 'normal' | 'baixa' {
@@ -74,6 +77,87 @@ function inferPriority(text: string): 'alta' | 'normal' | 'baixa' {
   return 'normal';
 }
 
+const TYPE_BORDER: Record<string, string> = {
+  corretiva:  '#BA1A1A',
+  preventiva: '#6AA151',
+};
+
+const PRIORITY_BADGE: Record<string, string> = {
+  alta:   'text-[#B91C1C] border-[#B91C1C] bg-[#FEE2E2]',
+  normal: 'text-yellow-700 border-yellow-300 bg-yellow-50',
+  baixa:  'text-[#6AA151] border-[#6AA151] bg-green-50',
+};
+
+const TYPE_BADGE: Record<string, string> = {
+  corretiva:  'text-[#6AA151] border-[#6AA151]',
+  preventiva: 'text-blue-600 border-blue-300',
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  agendado:     'Agendado',
+  em_andamento: 'Em andamento',
+  concluido:    'Concluído',
+};
+
+// ── Event detail panel ─────────────────────────────────────────────────────────
+
+function EventDetailPanel({ event, returnTo }: { event: CalendarEvent; returnTo: string }) {
+  const { user } = useAuth();
+  const priority = inferPriority(event.summary + ' ' + (event.description ?? ''));
+  const borderColor = TYPE_BORDER[event.maintenanceType] ?? '#C2C9B9';
+  const isPlanejador = user?.role === 'planejador';
+
+  return (
+    <div
+      className="animate-panel-enter rounded-[4px] border border-[#C2C9B9] bg-card shadow-sm overflow-hidden"
+      style={{ borderLeft: `6px solid ${borderColor}` }}
+    >
+      <div className="p-6">
+        {/* Title + badges */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-[20px] font-bold text-foreground leading-tight">{event.summary}</p>
+            {event.description && (
+              <p className="text-sm text-muted-foreground mt-1">"{event.description}"</p>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-1.5 shrink-0 justify-end">
+            <span className={cn('rounded-[2px] border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide', PRIORITY_BADGE[priority])}>
+              {priority}
+            </span>
+            <span className={cn('rounded-[2px] border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-transparent', TYPE_BADGE[event.maintenanceType])}>
+              {event.maintenanceType}
+            </span>
+            <span className="rounded-[2px] border border-[#C2C9B9] bg-[#F4F3F3] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-foreground">
+              {STATUS_LABEL[event.status]}
+            </span>
+          </div>
+        </div>
+
+        {/* Time */}
+        <div className="flex items-center gap-1.5 mt-4 pt-4 border-t border-[rgba(194,201,185,0.4)]">
+          <Clock className="h-3.5 w-3.5 text-[#6AA151]" />
+          <p className="text-sm font-bold text-[#15803D]">
+            {formatTime(event.start)} até {formatTime(event.end)}
+          </p>
+        </div>
+
+        {/* Action */}
+        {isPlanejador && (
+          <div className="mt-4">
+            <Button variant="outline" size="sm" className="rounded-[4px] border-[#C2C9B9] text-[12px] font-bold uppercase tracking-wide" asChild>
+              <Link href={`/event/${event.id}?returnTo=${encodeURIComponent(returnTo)}`}>
+                ✎ Editar chamado
+              </Link>
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Main page ──────────────────────────────────────────────────────────────────
 
 export function AgendaPage() {
   const { user } = useAuth();
@@ -81,7 +165,8 @@ export function AgendaPage() {
   const today = new Date();
   const [view, setView] = useState<'month' | 'week'>('month');
   const [anchor, setAnchor] = useState<Date>(new Date(today.getFullYear(), today.getMonth(), 1));
-  const [selectedDay, setSelectedDay] = useState<Date>(today);
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+
   const initialLabId = useMemo(() => {
     const p = new URLSearchParams(window.location.search);
     const v = p.get('labId');
@@ -98,11 +183,8 @@ export function AgendaPage() {
     view === 'month' ? buildMonthGrid(anchor.getFullYear(), anchor.getMonth()) : buildWeekGrid(anchor),
     [view, anchor]);
 
-  const timeMin = gridDays[0]!.toISOString();
-  const timeMax = new Date(gridDays[gridDays.length - 1]!.getTime() + 86400000).toISOString();
-
   const { data: events, isLoading } = useQuery({
-    queryKey: ['agenda-events', selectedLabId, timeMin, timeMax],
+    queryKey: ['agenda-events', selectedLabId, anchor.getFullYear(), anchor.getMonth(), view],
     queryFn: () => apiGet<CalendarEvent[]>('/api/calendar/events', selectedLabId ? { labId: selectedLabId } : undefined),
   });
 
@@ -115,8 +197,8 @@ export function AgendaPage() {
     return map;
   }, [events]);
 
-  const selectedKey = toDayKey(selectedDay);
-  const selectedEvents = eventsByDay.get(selectedKey) ?? [];
+  const selectedKey = selectedDay ? toDayKey(selectedDay) : null;
+  const selectedEvents = selectedKey ? (eventsByDay.get(selectedKey) ?? []) : [];
 
   function navigate(dir: 1 | -1) {
     const d = new Date(anchor);
@@ -126,26 +208,28 @@ export function AgendaPage() {
   }
 
   const maxChips = view === 'month' ? 2 : 4;
+  const currentLabName = labs?.find((l) => l.id === selectedLabId)?.name ?? 'Todos os laboratórios';
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      {/* Header */}
-      <div className="rounded-2xl border border-border bg-card p-4 flex flex-wrap items-center justify-between gap-3">
+    <div className="p-4 md:p-8 space-y-5">
+
+      {/* ── Header ──────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold text-foreground">
-            {labs?.find((l) => l.id === selectedLabId)?.name ?? 'Todos os laboratórios'}
-          </h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-700">OPERACIONAL</span>
-            <span className="text-xs text-muted-foreground">Última inspeção: {formatDatePt(today)}</span>
+          <h1 className="text-[30px] font-bold text-foreground leading-tight">{currentLabName}</h1>
+          <div className="flex items-center gap-2 mt-1.5">
+            <span className="inline-flex items-center gap-1.5 rounded-[4px] border border-[rgba(106,161,81,0.3)] bg-[rgba(106,161,81,0.1)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-primary">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+              Operacional
+            </span>
+            <span className="text-sm text-muted-foreground">Última inspeção: {formatDatePt(today)}</span>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            onValueChange={(v) => setSelectedLabId(v === 'all' ? undefined : parseInt(v))}
-          >
-            <SelectTrigger className="h-10 w-48">
+        {/* Controls */}
+        <div className="flex items-center gap-2 rounded-xl bg-[#F4F3F3] px-3 py-2 shadow-sm flex-wrap">
+          <Select onValueChange={(v) => setSelectedLabId(v === 'all' ? undefined : parseInt(v))}>
+            <SelectTrigger className="h-9 w-44 rounded-xl bg-card border-[#C2C9B9] text-sm">
               <SelectValue placeholder="Todos os labs" />
             </SelectTrigger>
             <SelectContent>
@@ -155,72 +239,103 @@ export function AgendaPage() {
           </Select>
 
           {/* View toggle */}
-          <div className="flex rounded-xl border border-border p-1 gap-1">
-            <Button size="sm" variant={view === 'month' ? 'default' : 'ghost'} className="h-8 px-3" onClick={() => setView('month')}>Mês</Button>
-            <Button size="sm" variant={view === 'week' ? 'default' : 'ghost'} className="h-8 px-3" onClick={() => setView('week')}>Semana</Button>
+          <div className="flex rounded-lg border border-[#C2C9B9] bg-[#EEEEEE] p-0.5">
+            <button
+              onClick={() => setView('month')}
+              className={cn(
+                'px-3 py-1 rounded-md text-sm font-bold transition-colors',
+                view === 'month' ? 'bg-primary text-white shadow-sm' : 'text-foreground',
+              )}
+            >Mês</button>
+            <button
+              onClick={() => setView('week')}
+              className={cn(
+                'px-3 py-1 rounded-md text-sm font-bold transition-colors',
+                view === 'week' ? 'bg-primary text-white shadow-sm' : 'text-foreground',
+              )}
+            >Semana</button>
           </div>
 
           {/* Navigation */}
           <div className="flex items-center gap-1">
-            <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => navigate(-1)}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="min-w-[160px] text-center text-sm text-muted-foreground capitalize">
+            <button
+              onClick={() => navigate(-1)}
+              className="h-8 w-8 rounded-full border border-[#C2C9B9] flex items-center justify-center hover:bg-muted transition-colors"
+            >
+              <ChevronLeft className="h-4 w-4 text-foreground" />
+            </button>
+            <span className="min-w-[160px] text-center text-[16px] font-bold text-foreground tracking-wide">
               {rangeLabel(view, anchor)}
             </span>
-            <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => navigate(1)}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
+            <button
+              onClick={() => navigate(1)}
+              className="h-8 w-8 rounded-full border border-[#C2C9B9] flex items-center justify-center hover:bg-muted transition-colors"
+            >
+              <ChevronRight className="h-4 w-4 text-foreground" />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Calendar grid */}
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      {/* ── Calendar grid ───────────────────────────────────────── */}
+      <div className="rounded-[4px] border border-[#C2C9B9] bg-card shadow-sm overflow-hidden">
         {/* Weekday headers */}
-        <div className="grid grid-cols-7 border-b border-border">
+        <div className="grid grid-cols-7 border-b border-[rgba(194,201,185,0.5)] bg-[#FAFAFA]">
           {WEEKDAY_LABELS.map((d) => (
-            <div key={d} className="py-2 text-center text-xs font-semibold text-muted-foreground">{d}</div>
+            <div key={d} className="py-2.5 text-center text-[12px] font-bold text-muted-foreground uppercase tracking-widest">
+              {d}
+            </div>
           ))}
         </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-7 gap-1.5 p-2">
-            {Array.from({ length: 42 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
+          <div className="grid grid-cols-7 gap-1 p-2">
+            {Array.from({ length: 42 }).map((_, i) => <Skeleton key={i} className="h-[92px]" />)}
           </div>
         ) : (
-          <div className={cn('grid grid-cols-7', view === 'month' ? 'gap-px' : 'gap-px')}>
+          <div className="grid grid-cols-7">
             {gridDays.map((day) => {
               const key = toDayKey(day);
               const dayEvents = eventsByDay.get(key) ?? [];
               const isToday = key === toDayKey(today);
               const inMonth = view === 'week' || day.getMonth() === anchor.getMonth();
-              const isSelected = key === selectedKey;
+              const isSelected = selectedKey === key;
+              const hasEvents = dayEvents.length > 0;
 
               return (
                 <button
                   key={key}
-                  onClick={() => setSelectedDay(day)}
+                  onClick={() => setSelectedDay(isSelected ? null : day)}
                   className={cn(
-                    'text-left p-1.5 transition-colors border-0',
+                    'text-left p-1.5 border-[rgba(194,201,185,0.2)] border transition-colors',
                     view === 'month' ? 'min-h-[92px]' : 'min-h-[120px]',
-                    isSelected ? 'bg-primary/5 ring-1 ring-inset ring-primary' : 'hover:bg-muted/50',
+                    isSelected
+                      ? 'bg-[rgba(106,161,81,0.05)] outline outline-1 outline-primary/40'
+                      : hasEvents ? 'hover:bg-[rgba(106,161,81,0.04)]' : 'hover:bg-muted/30',
                     !inMonth && 'opacity-40',
                   )}
                 >
-                  <span className={cn(
-                    'inline-flex h-6 w-6 items-center justify-center text-xs font-medium mb-1',
-                    isToday ? 'rounded-full bg-primary text-primary-foreground' : 'text-foreground',
-                  )}>
-                    {day.getDate()}
-                  </span>
+                  <div className="flex items-start justify-between">
+                    <span className={cn(
+                      'inline-flex h-6 w-6 items-center justify-center text-[12px] font-bold mb-1',
+                      isToday
+                        ? 'rounded-[4px] bg-primary text-primary-foreground'
+                        : 'text-foreground',
+                    )}>
+                      {day.getDate()}
+                    </span>
+                    {hasEvents && !isToday && (
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#BA1A1A] mt-1 mr-0.5" />
+                    )}
+                  </div>
 
                   <div className="space-y-0.5">
-                    {dayEvents.slice(0, maxChips).map((ev) =>
+                    {dayEvents.slice(0, maxChips).map((ev) => (
                       user?.role === 'cliente' ? (
                         <div
                           key={ev.id}
-                          className="truncate rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground"
+                          className="truncate rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold text-foreground bg-white shadow-sm"
+                          style={{ borderLeft: `4px solid ${TYPE_BORDER[ev.maintenanceType] ?? '#C2C9B9'}` }}
                           onClick={(e) => e.stopPropagation()}
                         >
                           {ev.summary}
@@ -229,13 +344,17 @@ export function AgendaPage() {
                         <Link
                           key={ev.id}
                           href={`/event/${ev.id}?returnTo=${encodeURIComponent(currentLocation)}`}
-                          className="block truncate rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
+                          className="block truncate rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold text-foreground bg-white shadow-sm hover:brightness-95 transition-all"
+                          style={{ borderLeft: `4px solid ${TYPE_BORDER[ev.maintenanceType] ?? '#C2C9B9'}` }}
                           onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         >
                           {ev.summary}
+                          <span className="block text-[9px] text-muted-foreground font-normal">
+                            {formatTime(ev.start)} - {formatTime(ev.end)}
+                          </span>
                         </Link>
                       )
-                    )}
+                    ))}
                     {dayEvents.length > maxChips && (
                       <p className="text-[10px] text-muted-foreground px-1">+{dayEvents.length - maxChips} mais</p>
                     )}
@@ -247,23 +366,33 @@ export function AgendaPage() {
         )}
       </div>
 
-      {/* Selected day events */}
-      <div>
-        <h2 className="text-base font-semibold text-foreground mb-3">
-          Eventos de {formatDatePt(selectedDay)}
-        </h2>
-        {selectedEvents.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-            Nenhum evento para o dia selecionado.
+      {/* ── Event detail panel ─────────────────────────────────── */}
+      {selectedDay && (
+        <div>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex-1 h-px bg-[rgba(194,201,185,0.5)]" />
+            <span className="text-[14px] font-bold text-foreground uppercase tracking-widest">
+              {selectedEvents.length > 0 ? 'Detalhes do evento' : 'Próximo evento'}
+            </span>
+            <div className="flex-1 h-px bg-[rgba(194,201,185,0.5)]" />
           </div>
-        ) : (
-          <div className="space-y-3">
-            {selectedEvents.map((ev) => (
-              <MaintenanceCard key={ev.id} event={ev} returnTo={currentLocation} />
-            ))}
-          </div>
-        )}
-      </div>
+
+          {selectedEvents.length === 0 ? (
+            <div
+              key={selectedKey ?? ''}
+              className="animate-panel-enter rounded-[4px] border border-[#C2C9B9] bg-card p-6 text-center text-sm text-muted-foreground"
+            >
+              Nenhum evento agendado para este dia.
+            </div>
+          ) : (
+            <div key={selectedKey ?? ''} className="space-y-3">
+              {selectedEvents.map((ev) => (
+                <EventDetailPanel key={ev.id} event={ev} returnTo={currentLocation} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
