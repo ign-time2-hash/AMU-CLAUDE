@@ -5,23 +5,23 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        sans: ['K2D', 'system-ui', 'sans-serif'],
       },
       colors: {
-        border: '#E5E7EB',
-        background: '#F6F8F5',
-        foreground: '#1F2937',
+        border: '#C2C9B9',
+        background: '#F9F9F9',
+        foreground: '#40493C',
         primary: {
-          DEFAULT: '#3F7D3A',
+          DEFAULT: '#6AA151',
           foreground: '#FFFFFF',
         },
         card: {
           DEFAULT: '#FFFFFF',
-          foreground: '#1F2937',
+          foreground: '#40493C',
         },
         muted: {
-          DEFAULT: '#EEF2EA',
-          foreground: '#4B5563',
+          DEFAULT: '#F4F3F3',
+          foreground: '#828F7C',
         },
       },
       borderRadius: {
