@@ -492,19 +492,18 @@ Garanta verify-seed.ts valida as 3 contas planejador.
 
 2. planejador_1:
    - /configuracoes e /teams redirecionam para /agenda
-   - /reschedules mostra pendentes SEM botões Aprovar/Recusar
+   - /reschedules mostra pendentes COM botões Aprovar/Recusar
    - POST /reschedule-requests/:id/approve retorna 403
    - Cria evento na agenda (OK)
    - Cria equipamento no inventário (OK)
    - Mapas: vê setores, NÃO arrasta pontos
    - Header: sem botão Webhook; com Novo evento
    - Perfil mostra "Acesso operacional"
+   - Não ter acesso acesso /configuracoes
 
 3. planejador_2: mesmo comportamento de planejador_1.
 
-4. tecnico_externo: continua aceitando/recusando chamados normalmente.
-
-5. pnpm typecheck limpo.
+4. pnpm typecheck limpo.
 ```
 
 ---
@@ -542,12 +541,12 @@ Garanta verify-seed.ts valida as 3 contas planejador.
 - [ ] Middleware `requirePlannerAdmin()` retorna 403 para operacional.
 - [ ] ADM: CRUD setores/labs, QR, webhooks, approve/reject remarcação.
 - [ ] Operacional: **não** CRUD setores/labs.
-- [ ] Operacional: **não** approve/reject/excluir remarcação.
+- [ ] Operacional: **sim** approve/reject/excluir remarcação.
 - [ ] Operacional: **não** acessa `/configuracoes` nem `/teams`.
-- [ ] Operacional: **não** gerencia webhooks (botão oculto no header).
-- [ ] Operacional: **não** excluir eventos de calendário.
-- [ ] Operacional: **não** aceitar/recusar/concluir chamados.
-- [ ] Operacional: **não** excluir chamados.
+- [ ] Operacional: **sim** gerencia webhooks (botão oculto no header).
+- [ ] Operacional: **sim** excluir eventos de calendário.
+- [ ] Operacional: **sim** aceitar/recusar/concluir chamados.
+- [ ] Operacional: **sim** excluir chamados.
 - [ ] Operacional: **não** editar coordenadas no mapa.
 - [ ] Operacional: **sim** ver agenda, criar/editar eventos, inventário.
 - [ ] Operacional: **sim** ver remarcações pendentes (read-only).
