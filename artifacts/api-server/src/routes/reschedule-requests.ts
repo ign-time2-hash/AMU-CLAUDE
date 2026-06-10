@@ -5,7 +5,7 @@ import { actor } from '../middleware/actor.js';
 import { requireRole } from '../middleware/require-role.js';
 import { requirePlannerAdmin } from '../middleware/require-planner-admin.js';
 import { listEvents, updateEvent } from '../services/calendar-service.js';
-import { sendRescheduleDecisionNotification } from '../services/teams-notifier.js';
+import { sendRescheduleCreatedNotification, sendRescheduleDecisionNotification } from '../services/teams-notifier.js';
 
 export const rescheduleRouter = Router();
 
@@ -18,6 +18,7 @@ const createSchema = z.object({
   labId: z.number().int().positive().optional(),
   requestedByName: z.string().min(1),
   reason: z.string().min(1),
+  suggestedDate: z.string().optional().nullable(),
   suggestedStart: z.string().optional(),
   suggestedEnd: z.string().optional(),
 });
@@ -39,14 +40,26 @@ rescheduleRouter.post('/', requireRole('cliente', 'planejador'), async (req, res
     res.status(400).json({ error: parse.error.errors[0]?.message });
     return;
   }
-  const { actorUsername: _, suggestedStart, suggestedEnd, ...data } = parse.data;
-  const request = await db.rescheduleRequest.create({
-    data: {
-      ...data,
-      suggestedStart: suggestedStart ? new Date(suggestedStart) : undefined,
-      suggestedEnd: suggestedEnd ? new Date(suggestedEnd) : undefined,
-    },
+  const { actorUsername: _, suggestedDate, suggestedStart, suggestedEnd, ...data } = parse.data;
+  const [request, lab] = await Promise.all([
+    db.rescheduleRequest.create({
+      data: {
+        ...data,
+        suggestedDate: suggestedDate ?? null,
+        suggestedStart: suggestedStart ? new Date(suggestedStart) : undefined,
+        suggestedEnd: suggestedEnd ? new Date(suggestedEnd) : undefined,
+      },
+    }),
+    data.labId ? db.lab.findUnique({ where: { id: data.labId }, select: { name: true } }) : null,
+  ]);
+
+  void sendRescheduleCreatedNotification(request.labId, {
+    labName: lab?.name ?? 'Lab',
+    requestedByName: request.requestedByName,
+    reason: request.reason,
+    ...(request.suggestedDate != null ? { suggestedDate: request.suggestedDate } : {}),
   });
+
   res.status(201).json(request);
 });
 
@@ -145,7 +158,7 @@ rescheduleRouter.post('/:id/approve', requireRole('planejador'), async (req, res
 
 rescheduleRouter.post('/:id/reject', requireRole('planejador'), async (req, res) => {
   const id = parseInt(req.params['id'] ?? '');
-  const { decisionReason } = req.body as { decisionReason?: string };
+  const { decisionReason, counterSuggestedDate } = req.body as { decisionReason?: string; counterSuggestedDate?: string };
 
   const current = await db.rescheduleRequest.findUnique({ where: { id } });
   if (!current) { res.status(404).json({ error: 'Solicitação não encontrada' }); return; }
@@ -156,6 +169,7 @@ rescheduleRouter.post('/:id/reject', requireRole('planejador'), async (req, res)
     data: {
       status: 'recusado',
       decisionReason,
+      counterSuggestedDate: counterSuggestedDate ?? null,
       decidedByUsername: req.actor!.username,
       decidedAt: new Date(),
     },
@@ -172,7 +186,8 @@ rescheduleRouter.post('/:id/reject', requireRole('planejador'), async (req, res)
     maintenanceType,
     equipamento,
     motivo: result.reason,
-    decisionReason,
+    ...(decisionReason != null ? { decisionReason } : {}),
+    ...(result.counterSuggestedDate != null ? { counterSuggestedDate: result.counterSuggestedDate } : {}),
   });
 
   res.json(result);

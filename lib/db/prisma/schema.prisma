@@ -143,23 +143,25 @@ model ChamadoComment {
 }
 
 model RescheduleRequest {
-  id                 Int              @id @default(autoincrement())
-  eventId            String           @map("event_id")
-  calendarId         String           @map("calendar_id")
-  labId              Int?             @map("lab_id")
-  lab                Lab?             @relation(fields: [labId], references: [id])
-  requestedByName    String           @map("requested_by_name")
-  reason             String
-  suggestedStart     DateTime?        @map("suggested_start") @db.Timestamptz(6)
-  suggestedEnd       DateTime?        @map("suggested_end") @db.Timestamptz(6)
-  status             RescheduleStatus @default(pendente)
-  decisionReason     String?          @map("decision_reason")
-  newStart           DateTime?        @map("new_start") @db.Timestamptz(6)
-  newEnd             DateTime?        @map("new_end") @db.Timestamptz(6)
-  decidedByUsername  String?          @map("decided_by_username")
-  decidedAt          DateTime?        @map("decided_at") @db.Timestamptz(6)
-  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                   Int              @id @default(autoincrement())
+  eventId              String           @map("event_id")
+  calendarId           String           @map("calendar_id")
+  labId                Int?             @map("lab_id")
+  lab                  Lab?             @relation(fields: [labId], references: [id])
+  requestedByName      String           @map("requested_by_name")
+  reason               String
+  suggestedDate        String?          @map("suggested_date")
+  suggestedStart       DateTime?        @map("suggested_start") @db.Timestamptz(6)
+  suggestedEnd         DateTime?        @map("suggested_end") @db.Timestamptz(6)
+  status               RescheduleStatus @default(pendente)
+  decisionReason       String?          @map("decision_reason")
+  counterSuggestedDate String?          @map("counter_suggested_date")
+  newStart             DateTime?        @map("new_start") @db.Timestamptz(6)
+  newEnd               DateTime?        @map("new_end") @db.Timestamptz(6)
+  decidedByUsername    String?          @map("decided_by_username")
+  decidedAt            DateTime?        @map("decided_at") @db.Timestamptz(6)
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("reschedule_requests")
 }

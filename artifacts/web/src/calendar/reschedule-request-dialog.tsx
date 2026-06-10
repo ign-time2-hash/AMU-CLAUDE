@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -21,9 +20,8 @@ interface Props {
 }
 
 const schema = z.object({
-  reason: z.string().min(1, 'Motivo obrigatório'),
   suggestedStart: z.string().optional(),
-  suggestedEnd: z.string().optional(),
+  reason: z.string().min(1, 'Motivo obrigatório'),
 });
 
 type Form = z.infer<typeof schema>;
@@ -42,7 +40,6 @@ export function RescheduleRequestDialog({ open, onOpenChange, eventId, calendarI
         requestedByName: user?.name ?? '',
         reason: data.reason,
         suggestedStart: data.suggestedStart || undefined,
-        suggestedEnd: data.suggestedEnd || undefined,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reschedule-requests'] });
@@ -69,19 +66,14 @@ export function RescheduleRequestDialog({ open, onOpenChange, eventId, calendarI
         </DialogHeader>
         <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4 mt-2">
           <div className="space-y-1.5">
+            <Label>Data e horário de início sugeridos <span className="text-muted-foreground">(opcional)</span></Label>
+            <Input type="datetime-local" {...register('suggestedStart')} min={new Date().toISOString().slice(0, 16)} />
+            <p className="text-xs text-muted-foreground">Sugira quando o técnico poderia iniciar. O horário de término será definido pelo planejador.</p>
+          </div>
+          <div className="space-y-1.5">
             <Label>Motivo do reagendamento</Label>
             <Textarea {...register('reason')} placeholder="Descreva o motivo..." />
             {errors.reason && <p className="text-sm text-red-600">{errors.reason.message}</p>}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Data/hora sugerida — início <span className="text-muted-foreground">(opcional)</span></Label>
-              <Input type="datetime-local" {...register('suggestedStart')} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Fim <span className="text-muted-foreground">(opcional)</span></Label>
-              <Input type="datetime-local" {...register('suggestedEnd')} />
-            </div>
           </div>
           <div className="flex gap-2">
             <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
