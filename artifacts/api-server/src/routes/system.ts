@@ -14,7 +14,7 @@ systemRouter.get('/healthz', async (_req, res) => {
 
 systemRouter.get('/demo', (_req, res) => {
   res.json({
-    name: 'AMU / Kronus',
+    name: 'AMU',
     version: '1.0.0',
     description: 'Sistema de gestão de manutenção de laboratórios industriais',
   });

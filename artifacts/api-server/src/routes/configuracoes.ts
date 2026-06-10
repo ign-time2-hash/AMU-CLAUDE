@@ -3,11 +3,13 @@ import { z } from 'zod';
 import { db } from '../db.js';
 import { actor } from '../middleware/actor.js';
 import { requireRole } from '../middleware/require-role.js';
+import { requirePlannerAdmin } from '../middleware/require-planner-admin.js';
 
 export const configuracoesRouter = Router();
 
 configuracoesRouter.use(actor);
 configuracoesRouter.use(requireRole('planejador'));
+configuracoesRouter.use(requirePlannerAdmin());
 
 const setorSchema = z.object({
   actorUsername: z.string(),

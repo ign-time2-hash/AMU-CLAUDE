@@ -8,6 +8,7 @@ export interface AuthUser {
   name: string;
   jobTitle: string;
   role: UserRole;
+  isPlannerAdmin: boolean;
 }
 
 interface AuthContextValue {

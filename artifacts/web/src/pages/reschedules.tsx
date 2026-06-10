@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../lib/auth.js';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -50,9 +51,11 @@ type ApproveForm = z.infer<typeof approveSchema>;
 type RejectForm = z.infer<typeof rejectSchema>;
 
 export function ReschedulesPage() {
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState<RescheduleRequest | null>(null);
   const [action, setAction] = useState<'approve' | 'reject' | null>(null);
+  const canDecide = user?.role === 'planejador';
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ['reschedule-requests'],
@@ -110,7 +113,13 @@ export function ReschedulesPage() {
             ) : (
               <div className="space-y-3">
                 {pending.map((r) => (
-                  <RequestCard key={r.id} request={r} onApprove={() => { setSelected(r); setAction('approve'); }} onReject={() => { setSelected(r); setAction('reject'); }} />
+                  <RequestCard
+                    key={r.id}
+                    request={r}
+                    canDecide={canDecide}
+                    onApprove={() => { setSelected(r); setAction('approve'); }}
+                    onReject={() => { setSelected(r); setAction('reject'); }}
+                  />
                 ))}
               </div>
             )}
@@ -194,10 +203,12 @@ export function ReschedulesPage() {
 
 function RequestCard({
   request: r,
+  canDecide = false,
   onApprove,
   onReject,
 }: {
   request: RescheduleRequest;
+  canDecide?: boolean;
   onApprove?: () => void;
   onReject?: () => void;
 }) {
@@ -223,7 +234,7 @@ function RequestCard({
             <p className="text-xs text-red-700 mt-1 font-medium">Motivo da recusa: {r.decisionReason}</p>
           )}
         </div>
-        {r.status === 'pendente' && onApprove && onReject && (
+        {r.status === 'pendente' && canDecide && (
           <div className="flex flex-col gap-1.5 shrink-0">
             <Button size="sm" onClick={onApprove}>Aprovar</Button>
             <Button size="sm" variant="destructive" onClick={onReject}>Recusar</Button>

@@ -71,15 +71,11 @@ function AppRoutes() {
         </Route>
 
         <Route path="/teams">
-          <RoleGate allow={['planejador']}>
-            <TeamsPage />
-          </RoleGate>
+          {user.role === 'planejador' && user.isPlannerAdmin ? <TeamsPage /> : <Redirect to={home} />}
         </Route>
 
         <Route path="/configuracoes">
-          <RoleGate allow={['planejador']}>
-            <ConfiguracoesPage />
-          </RoleGate>
+          {user.role === 'planejador' && user.isPlannerAdmin ? <ConfiguracoesPage /> : <Redirect to={home} />}
         </Route>
 
         <Route path="/scan">

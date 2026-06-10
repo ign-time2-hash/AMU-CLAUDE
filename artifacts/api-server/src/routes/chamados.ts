@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '../db.js';
 import { actor } from '../middleware/actor.js';
 import { requireRole } from '../middleware/require-role.js';
+import { requirePlannerAdmin } from '../middleware/require-planner-admin.js';
 import { sendChamadoNotification } from '../services/teams-notifier.js';
 
 export const chamadosRouter = Router();
@@ -82,7 +83,7 @@ chamadosRouter.get('/:id', async (req, res) => {
   res.json(chamado);
 });
 
-chamadosRouter.patch('/:id', requireRole('planejador'), async (req, res) => {
+chamadosRouter.patch('/:id', requireRole('planejador'), requirePlannerAdmin(), async (req, res) => {
   const id = parseInt(req.params['id'] ?? '');
   const patchSchema = z.object({
     actorUsername: z.string(),
@@ -100,13 +101,13 @@ chamadosRouter.patch('/:id', requireRole('planejador'), async (req, res) => {
   res.json(chamado);
 });
 
-chamadosRouter.delete('/:id', requireRole('planejador'), async (req, res) => {
+chamadosRouter.delete('/:id', requireRole('planejador'), requirePlannerAdmin(), async (req, res) => {
   const id = parseInt(req.params['id'] ?? '');
   await db.chamado.delete({ where: { id } });
   res.status(204).end();
 });
 
-chamadosRouter.post('/:id/accept', requireRole('planejador'), async (req, res) => {
+chamadosRouter.post('/:id/accept', requireRole('planejador'), requirePlannerAdmin(), async (req, res) => {
   const id = parseInt(req.params['id'] ?? '');
   const updated = await db.chamado.updateMany({
     where: { id, status: 'em_espera' },
@@ -129,7 +130,7 @@ chamadosRouter.post('/:id/accept', requireRole('planejador'), async (req, res) =
   res.json({ ok: true });
 });
 
-chamadosRouter.post('/:id/reject', requireRole('planejador'), async (req, res) => {
+chamadosRouter.post('/:id/reject', requireRole('planejador'), requirePlannerAdmin(), async (req, res) => {
   const id = parseInt(req.params['id'] ?? '');
   const { rejectionReason } = req.body as { rejectionReason?: string };
   const updated = await db.chamado.updateMany({
@@ -153,7 +154,7 @@ chamadosRouter.post('/:id/reject', requireRole('planejador'), async (req, res) =
   res.json({ ok: true });
 });
 
-chamadosRouter.post('/:id/complete', requireRole('planejador'), async (req, res) => {
+chamadosRouter.post('/:id/complete', requireRole('planejador'), requirePlannerAdmin(), async (req, res) => {
   const id = parseInt(req.params['id'] ?? '');
   const updated = await db.chamado.updateMany({
     where: { id, status: 'em_progresso' },

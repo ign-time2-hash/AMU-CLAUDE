@@ -384,8 +384,8 @@ export function OverviewPage() {
             </div>
           )}
 
-          {/* Edição de posição — planejador, modo mapa */}
-          {user?.role === 'planejador' && mode === 'map' && (
+          {/* Edição de posição — só planejador ADM, modo mapa */}
+          {user?.role === 'planejador' && user.isPlannerAdmin && mode === 'map' && (
             editMode ? (
               <div className="flex gap-2">
                 {activeMapaHasOverrides && (

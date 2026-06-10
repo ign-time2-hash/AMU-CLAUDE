@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '../db.js';
 import { actor } from '../middleware/actor.js';
 import { requireRole } from '../middleware/require-role.js';
+import { requirePlannerAdmin } from '../middleware/require-planner-admin.js';
 import { listEvents, createEvent, updateEvent, deleteEvent } from '../services/calendar-service.js';
 import { analyzeLabMaintenance, analyzeAllLabs } from '../services/maintenance-analysis-job.js';
 
@@ -49,7 +50,7 @@ calendarRouter.patch('/events/:eventId', requireRole('planejador'), async (req, 
   }
 });
 
-calendarRouter.delete('/events/:eventId', requireRole('planejador'), async (req, res) => {
+calendarRouter.delete('/events/:eventId', requireRole('planejador'), requirePlannerAdmin(), async (req, res) => {
   const { eventId } = req.params as { eventId: string };
   await deleteEvent(eventId);
   res.status(204).end();

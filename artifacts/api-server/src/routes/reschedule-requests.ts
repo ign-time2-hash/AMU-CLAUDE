@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '../db.js';
 import { actor } from '../middleware/actor.js';
 import { requireRole } from '../middleware/require-role.js';
+import { requirePlannerAdmin } from '../middleware/require-planner-admin.js';
 import { listEvents, updateEvent } from '../services/calendar-service.js';
 import { sendRescheduleDecisionNotification } from '../services/teams-notifier.js';
 
@@ -75,7 +76,7 @@ rescheduleRouter.patch('/:id', requireRole('planejador'), async (req, res) => {
   res.json(request);
 });
 
-rescheduleRouter.delete('/:id', requireRole('planejador'), async (req, res) => {
+rescheduleRouter.delete('/:id', requireRole('planejador'), requirePlannerAdmin(), async (req, res) => {
   const id = parseInt(req.params['id'] ?? '');
   await db.rescheduleRequest.delete({ where: { id } });
   res.status(204).end();

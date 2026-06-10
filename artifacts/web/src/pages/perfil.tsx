@@ -34,7 +34,11 @@ export function PerfilPage() {
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Acesso</span>
-            <span className="font-medium text-foreground">{ROLE_ACCESS_LABEL[user.role]}</span>
+            <span className="font-medium text-foreground">
+              {user.role === 'planejador'
+                ? user.isPlannerAdmin ? 'Acesso total' : 'Acesso operacional'
+                : ROLE_ACCESS_LABEL[user.role]}
+            </span>
           </div>
         </div>
 

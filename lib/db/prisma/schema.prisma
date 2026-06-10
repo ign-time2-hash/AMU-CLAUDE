@@ -43,14 +43,15 @@ enum RescheduleStatus {
 }
 
 model User {
-  username     String   @id
-  passwordHash String   @map("password_hash")
-  name         String
-  jobTitle     String   @default("") @map("job_title")
-  role         UserRole
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  username        String   @id
+  passwordHash    String   @map("password_hash")
+  name            String
+  jobTitle        String   @default("") @map("job_title")
+  role            UserRole
+  isPlannerAdmin  Boolean  @default(false) @map("is_planner_admin")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   @@map("users")
 }

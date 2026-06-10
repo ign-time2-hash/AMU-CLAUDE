@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db.js';
 import { actor } from '../middleware/actor.js';
 import { requireRole } from '../middleware/require-role.js';
+import { requirePlannerAdmin } from '../middleware/require-planner-admin.js';
 import { sendDailySummaryNotification } from '../services/teams-notifier.js';
 import {
   getDailySummaryEnabled, setDailySummaryEnabled,
@@ -14,6 +15,7 @@ export const teamsRouter = Router();
 
 teamsRouter.use(actor);
 teamsRouter.use(requireRole('planejador'));
+teamsRouter.use(requirePlannerAdmin());
 
 teamsRouter.get('/settings', (_req, res) => {
   res.json({

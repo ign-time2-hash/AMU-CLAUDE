@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '../db.js';
 import { actor } from '../middleware/actor.js';
 import { requireRole } from '../middleware/require-role.js';
+import { requirePlannerAdmin } from '../middleware/require-planner-admin.js';
 import { isWorkflowsUrl, postRaw } from '../services/teams-notifier.js';
 import { listEvents } from '../services/calendar-service.js';
 
@@ -10,6 +11,7 @@ export const webhooksRouter = Router();
 
 webhooksRouter.use(actor);
 webhooksRouter.use(requireRole('planejador'));
+webhooksRouter.use(requirePlannerAdmin());
 
 const webhookSchema = z.object({
   actorUsername: z.string(),
@@ -119,7 +121,7 @@ webhooksRouter.post('/:id/test', async (req, res) => {
         '@context': 'http://schema.org/extensions',
         themeColor: '3F7D3A',
         title: 'AMU',
-        summary: 'Teste de webhook AMU/Kronus',
+        summary: 'Teste de webhook AMU',
         text: messageLines.replace(/\n/g, '\n\n'),
       };
 
