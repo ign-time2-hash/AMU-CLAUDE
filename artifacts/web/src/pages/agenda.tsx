@@ -239,20 +239,21 @@ export function AgendaPage() {
           </Select>
 
           {/* View toggle */}
-          <div className="flex rounded-lg border border-[#C2C9B9] bg-[#EEEEEE] p-0.5">
+          <div className="relative flex rounded-lg border border-[#C2C9B9] bg-[#EEEEEE] p-[3px] gap-[2px]">
+            <div
+              className="absolute top-[3px] bottom-[3px] w-[72px] rounded-md bg-primary shadow-sm pointer-events-none"
+              style={{
+                transition: 'transform 280ms cubic-bezier(0.22, 1, 0.36, 1)',
+                transform: view === 'week' ? 'translateX(74px)' : 'translateX(0)',
+              }}
+            />
             <button
               onClick={() => setView('month')}
-              className={cn(
-                'px-3 py-1 rounded-md text-sm font-bold transition-colors',
-                view === 'month' ? 'bg-primary text-white shadow-sm' : 'text-foreground',
-              )}
+              className={cn('relative z-10 w-[72px] py-1 text-sm font-bold text-center transition-colors duration-200', view === 'month' ? 'text-white' : 'text-foreground')}
             >Mês</button>
             <button
               onClick={() => setView('week')}
-              className={cn(
-                'px-3 py-1 rounded-md text-sm font-bold transition-colors',
-                view === 'week' ? 'bg-primary text-white shadow-sm' : 'text-foreground',
-              )}
+              className={cn('relative z-10 w-[72px] py-1 text-sm font-bold text-center transition-colors duration-200', view === 'week' ? 'text-white' : 'text-foreground')}
             >Semana</button>
           </div>
 
