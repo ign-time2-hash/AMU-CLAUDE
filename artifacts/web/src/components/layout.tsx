@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { IconReagendamento } from './icons/icon-reagendamento.js';
 import { useQuery } from '@tanstack/react-query';
-import { AmuLogo, AmuLogoText } from './amu-logo.js';
 import { useAuth } from '../lib/auth.js';
 import { apiGet } from '../lib/api.js';
 import { Button } from './ui/button.js';
@@ -156,9 +155,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         className="hidden md:flex h-[65px] shrink-0 items-center justify-between px-6 bg-card z-20"
         style={{ borderBottom: `1px solid ${SIDEBAR_BORDER}` }}
       >
-        <Link href={homePath} className="flex items-center gap-2">
-          <AmuLogo size={34} />
-          <AmuLogoText />
+        <Link href={homePath} className="flex items-center">
+          <img src="/logo/amu-logo-header.png" alt="AMU" className="h-9 w-auto object-contain" />
         </Link>
 
         <div className="flex items-center gap-2">
@@ -241,9 +239,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 flex flex-col overflow-hidden">
           {/* Mobile header */}
           <header className="md:hidden sticky top-0 z-20 h-14 border-b border-border bg-background/90 backdrop-blur flex items-center justify-between px-4">
-            <Link href={homePath} className="flex items-center gap-2">
-              <AmuLogo size={28} />
-              <span className="font-bold text-primary">AMU</span>
+            <Link href={homePath} className="flex items-center">
+              <img src="/logo/amu-logo-header.png" alt="AMU" className="h-8 w-auto object-contain" />
             </Link>
             <Link
               href="/perfil"
