@@ -160,9 +160,13 @@ export function InventarioPage() {
 
   const { data: setores } = useQuery({
     queryKey: ['setores'],
-    queryFn: () => apiGet<{ id: number; name: string }[]>('/api/setores'),
+    queryFn: () => apiGet<{ id: number; name: string; cenpes: string }[]>('/api/setores'),
     enabled: user?.role === 'planejador',
   });
+
+  const setoresFiltrados = selectedCenpes
+    ? setores?.filter((s) => s.cenpes === selectedCenpes)
+    : setores;
 
   const { data: tree, isLoading } = useQuery({
     queryKey: ['inventario-tree', selectedCenpes, selectedSetorId, selectedLabId, q],
@@ -241,15 +245,16 @@ export function InventarioPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
               <Select
+                key={selectedCenpes ?? 'geral'}
                 onValueChange={(v) => {
                   setSelectedSetorId(v === 'all' ? undefined : parseInt(v));
-                  setSelectedLabId(undefined); // reset lab on setor change
+                  setSelectedLabId(undefined);
                 }}
               >
                 <SelectTrigger><SelectValue placeholder="Todos os setores" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos os setores</SelectItem>
-                  {setores?.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                  {setoresFiltrados?.map((s) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
 
