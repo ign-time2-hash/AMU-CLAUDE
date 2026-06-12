@@ -265,16 +265,20 @@ export function EventDialog() {
           <div className="space-y-1.5">
             <Label>Nível de emergência</Label>
             <div className="flex gap-2">
-              {(['baixa', 'normal', 'alta'] as const).map((p) => (
+              {([
+                { value: 'baixa',  label: 'Baixa',  activeClass: 'bg-green-600 border-green-600 text-white hover:bg-green-700' },
+                { value: 'normal', label: 'Média',  activeClass: 'bg-yellow-400 border-yellow-400 text-black hover:bg-yellow-500' },
+                { value: 'alta',   label: 'Alta',   activeClass: 'bg-red-600 border-red-600 text-white hover:bg-red-700' },
+              ] as const).map(({ value: p, label, activeClass }) => (
                 <Button
                   key={p}
                   type="button"
-                  variant={priority === p ? 'default' : 'outline'}
+                  variant="outline"
                   size="sm"
-                  className="flex-1 capitalize"
+                  className={cn('flex-1', priority === p ? activeClass : '')}
                   onClick={() => setValue('priority', p)}
                 >
-                  {p}
+                  {label}
                 </Button>
               ))}
             </div>

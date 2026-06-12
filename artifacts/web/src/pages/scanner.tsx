@@ -20,9 +20,16 @@ export function ScannerPage() {
   useEffect(() => {
     let mounted = true;
 
+    function clearContainer() {
+      const container = document.getElementById('amu-fullscreen-qr');
+      if (container) container.innerHTML = '';
+    }
+
     async function startScanner() {
       try {
         const { Html5Qrcode } = await import('html5-qrcode');
+        if (!mounted) return;
+        clearContainer();
         const scanner = new Html5Qrcode('amu-fullscreen-qr');
         scannerRef.current = scanner;
 
@@ -57,6 +64,8 @@ export function ScannerPage() {
     return () => {
       mounted = false;
       void scannerRef.current?.stop().catch(() => undefined);
+      scannerRef.current = null;
+      clearContainer();
     };
   }, [setLocation]);
 

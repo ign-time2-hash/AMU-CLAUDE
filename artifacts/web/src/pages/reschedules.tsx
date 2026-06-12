@@ -49,6 +49,12 @@ const STATUS_BADGE: Record<string, string> = {
   recusado: 'bg-red-100 text-red-800',
 };
 
+const STATUS_LABEL: Record<string, string> = {
+  pendente: 'Pendente',
+  aprovado: 'Aprovado',
+  recusado: 'Recusado',
+};
+
 const approveSchema = z.object({
   decisionReason: z.string().optional(),
   newStart: z.string().optional(),
@@ -263,7 +269,7 @@ function RequestCard({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', STATUS_BADGE[r.status])}>
-              {r.status}
+              {STATUS_LABEL[r.status] ?? r.status}
             </span>
             {r.lab && <span className="text-xs text-muted-foreground">{r.lab.name}</span>}
           </div>

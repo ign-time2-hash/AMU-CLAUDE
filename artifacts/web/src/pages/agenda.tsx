@@ -77,15 +77,22 @@ function inferPriority(text: string): 'alta' | 'normal' | 'baixa' {
   return 'normal';
 }
 
-const TYPE_BORDER: Record<string, string> = {
-  corretiva:  '#BA1A1A',
-  preventiva: '#6AA151',
+const PRIORITY_BORDER: Record<string, string> = {
+  alta:   '#BA1A1A',
+  normal: '#FBBF24',
+  baixa:  '#6AA151',
 };
 
 const PRIORITY_BADGE: Record<string, string> = {
   alta:   'text-[#B91C1C] border-[#B91C1C] bg-[#FEE2E2]',
   normal: 'text-yellow-700 border-yellow-300 bg-yellow-50',
   baixa:  'text-[#6AA151] border-[#6AA151] bg-green-50',
+};
+
+const PRIORITY_LABEL: Record<string, string> = {
+  alta:   'Alta',
+  normal: 'Média',
+  baixa:  'Baixa',
 };
 
 const TYPE_BADGE: Record<string, string> = {
@@ -104,7 +111,7 @@ const STATUS_LABEL: Record<string, string> = {
 function EventDetailPanel({ event, returnTo }: { event: CalendarEvent; returnTo: string }) {
   const { user } = useAuth();
   const priority = inferPriority(event.summary + ' ' + (event.description ?? ''));
-  const borderColor = TYPE_BORDER[event.maintenanceType] ?? '#C2C9B9';
+  const borderColor = PRIORITY_BORDER[priority] ?? '#C2C9B9';
   const isPlanejador = user?.role === 'planejador';
 
   return (
@@ -123,7 +130,7 @@ function EventDetailPanel({ event, returnTo }: { event: CalendarEvent; returnTo:
           </div>
           <div className="flex flex-wrap gap-1.5 shrink-0 justify-end">
             <span className={cn('rounded-[2px] border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide', PRIORITY_BADGE[priority])}>
-              {priority}
+              {PRIORITY_LABEL[priority] ?? priority}
             </span>
             <span className={cn('rounded-[2px] border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-transparent', TYPE_BADGE[event.maintenanceType])}>
               {event.maintenanceType}
@@ -239,9 +246,9 @@ export function AgendaPage() {
           </Select>
 
           {/* View toggle */}
-          <div className="relative flex rounded-lg border border-[#C2C9B9] bg-[#EEEEEE] p-[3px] gap-[2px]">
+          <div className="relative flex rounded-full border border-[#C2C9B9] bg-[#EEEEEE] p-[3px] gap-[2px]">
             <div
-              className="absolute top-[3px] bottom-[3px] w-[72px] rounded-md bg-primary shadow-sm pointer-events-none"
+              className="absolute top-[3px] bottom-[3px] w-[72px] rounded-full bg-primary shadow-sm pointer-events-none"
               style={{
                 transition: 'transform 280ms cubic-bezier(0.22, 1, 0.36, 1)',
                 transform: view === 'week' ? 'translateX(74px)' : 'translateX(0)',
@@ -336,7 +343,7 @@ export function AgendaPage() {
                         <div
                           key={ev.id}
                           className="truncate rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold text-foreground bg-white shadow-sm"
-                          style={{ borderLeft: `4px solid ${TYPE_BORDER[ev.maintenanceType] ?? '#C2C9B9'}` }}
+                          style={{ borderLeft: `4px solid ${PRIORITY_BORDER[inferPriority(ev.summary + ' ' + (ev.description ?? ''))] ?? '#C2C9B9'}` }}
                           onClick={(e) => e.stopPropagation()}
                         >
                           {ev.summary}
@@ -346,7 +353,7 @@ export function AgendaPage() {
                           key={ev.id}
                           href={`/event/${ev.id}?returnTo=${encodeURIComponent(currentLocation)}`}
                           className="block truncate rounded-[4px] px-1.5 py-0.5 text-[10px] font-bold text-foreground bg-white shadow-sm hover:brightness-95 transition-all"
-                          style={{ borderLeft: `4px solid ${TYPE_BORDER[ev.maintenanceType] ?? '#C2C9B9'}` }}
+                          style={{ borderLeft: `4px solid ${PRIORITY_BORDER[inferPriority(ev.summary + ' ' + (ev.description ?? ''))] ?? '#C2C9B9'}` }}
                           onClick={(e: React.MouseEvent) => e.stopPropagation()}
                         >
                           {ev.summary}

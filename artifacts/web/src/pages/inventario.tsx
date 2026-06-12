@@ -45,6 +45,12 @@ const CRITICIDADE_BADGE: Record<string, string> = {
   alta: 'bg-red-100 text-red-700',
 };
 
+const CRITICIDADE_LABEL: Record<string, string> = {
+  baixa:  'Baixa',
+  normal: 'Média',
+  alta:   'Alta',
+};
+
 const createSchema = z.object({
   name: z.string().min(1, 'Nome obrigatório').max(120, 'Máx 120 caracteres'),
   idLab: z.string().min(1, 'Selecione um laboratório'),
@@ -119,7 +125,7 @@ function EquipamentoForm({ labs, onSuccess }: { labs: Lab[] | undefined; onSucce
                   : 'border-border text-muted-foreground hover:bg-muted',
               )}
             >
-              {c}
+              {CRITICIDADE_LABEL[c]}
             </button>
           ))}
         </div>
@@ -334,7 +340,7 @@ export function InventarioPage() {
                           )}
                         </div>
                         <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', CRITICIDADE_BADGE[eq.criticidade])}>
-                          {eq.criticidade}
+                          {CRITICIDADE_LABEL[eq.criticidade] ?? eq.criticidade}
                         </span>
                       </div>
                     ))}

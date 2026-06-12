@@ -58,6 +58,25 @@
   animation: nav-pop 420ms cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
+/* html5-qrcode: ocultar barras extras, deixar só câmera + quadrado */
+#amu-fullscreen-qr__header_message,
+#amu-fullscreen-qr__dashboard {
+  display: none !important;
+}
+#amu-fullscreen-qr__scan_region {
+  height: 100% !important;
+  flex: 1 !important;
+}
+#amu-fullscreen-qr__scan_region video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}
+#amu-fullscreen-qr {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
 @layer base {
   * {
     @apply border-border;

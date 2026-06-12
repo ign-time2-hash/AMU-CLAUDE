@@ -81,6 +81,11 @@ const MAPA_IMAGES_2D: Record<string, string> = {
   'cenpes-2': '/maps/cenpes-1-map.png',
 };
 
+const MAPA_IMAGES_MOBILE: Record<string, string> = {
+  'cenpes-1': '/maps/CenpesAntigomobile.jpeg',
+  'cenpes-2': '/maps/cenpes novo mobile.png',
+};
+
 function getSetorOrdinal(name: string): number {
   const m = name.match(/\d+/);
   return m ? parseInt(m[0]) : 1;
@@ -238,8 +243,9 @@ export function OverviewPage() {
 
   // Image & aspect
   const has2D = !!MAPA_IMAGES_2D[activeMapaSlug];
-  const mapImage = isMobile && has2D
-    ? MAPA_IMAGES_2D[activeMapaSlug]
+  const hasMobile = !!MAPA_IMAGES_MOBILE[activeMapaSlug];
+  const mapImage = isMobile && hasMobile
+    ? MAPA_IMAGES_MOBILE[activeMapaSlug]
     : MAPA_IMAGES[activeMapaSlug];
   const fallbackKey = isMobile && has2D ? `${activeMapaSlug}-2d` : activeMapaSlug;
   const aspectClass = isMobile

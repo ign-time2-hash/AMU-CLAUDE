@@ -44,6 +44,12 @@ const PRIORITY_COLORS: Record<string, string> = {
   baixa:  'bg-green-500 text-white',
 };
 
+const PRIORITY_LABEL: Record<string, string> = {
+  alta:   'Alta',
+  normal: 'Média',
+  baixa:  'Baixa',
+};
+
 function inferPriority(text: string): 'alta' | 'normal' | 'baixa' {
   const t = text.toLowerCase();
   if (t.includes('alta')) return 'alta';
@@ -75,9 +81,9 @@ const RESCHEDULE_BADGE: Record<string, string> = {
 };
 
 const RESCHEDULE_LABEL: Record<string, string> = {
-  pendente: 'Reagendamento pendente',
-  aprovado: 'Remarcado',
-  recusado: 'Reagendamento recusado',
+  pendente: 'Reagendamento Pendente',
+  aprovado: 'Aprovado',
+  recusado: 'Reagendamento Recusado',
 };
 
 export function MaintenanceCard({ event, returnTo = '/agenda' }: Props) {
@@ -115,7 +121,7 @@ export function MaintenanceCard({ event, returnTo = '/agenda' }: Props) {
           </span>
           {/* Prioridade */}
           <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', PRIORITY_COLORS[priority])}>
-            {priority}
+            {PRIORITY_LABEL[priority] ?? priority}
           </span>
           {/* Badge de remarcação */}
           {lastRequest && (
